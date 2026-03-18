@@ -1,0 +1,29 @@
+{
+    "cameras": [
+        {
+            "id": 1,
+            "name": "Camera 1",
+            "url": "rtsp://admin:rtc%402025@192.168.5.110:554/Streaming/Channels/101",
+            "model": "/media/tmh/New Volume/RTC/RTC_FORD_CAMAI/cam_ai_ford_project/cam_window/best.pt",
+            "enabled": true
+        },
+        {
+            "id": 2,
+            "name": "Camera 2",
+            "url": "0",
+            "model": "",
+            "enabled": true
+        },
+        {
+            "id": 3,
+            "name": "Camera 3",
+            "url": "rtsp://admin:rtc%402025@192.168.5.111:554/Streaming/Channels/101",
+            "model": "",
+            "enabled": true
+        }
+    ],
+    "websocket": {
+        "host": "0.0.0.0",
+        "port": 8765
+    }
+}

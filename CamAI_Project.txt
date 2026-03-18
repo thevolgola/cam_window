@@ -1,0 +1,18 @@
+CamAI_Ford
+│
+├── mainwindow.py                 # The Launcher
+├── modules/
+│   ├── camera.py    # RTSP/Webcam stream logic
+│   ├── detect.py    # AI logic (Standard Inference)
+│   ├── roi_dialog.py       # THE HYBRID EDITOR (Auto + Manual)
+│   ├── web_socket.py       # Data broadcasting & Logging
+│   ├── settings_dialog.py   # Settings & ROI File handling
+│   └── unit_manager.py     # System "Boss" (Handles multiple cams)
+│
+├── config/
+│   ├── settings.json       # App & Camera configs
+│   └── rois/               # Generated ROI JSONs for each cam
+│
+├── models/                 # Your trained .pt files
+├── logs/                   # Auto-rotating JSON logs
+└── assets/                 # Icons and Dark Mode CSS (.qss)
