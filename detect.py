@@ -6,10 +6,12 @@ import queue
 import torch
 
 class YOLODetector(threading.Thread):
-    def __init__(self, frame_queue, result_queue, model_path="best.pt", detect_interval=0.25):
+    def __init__(self, frame_queue, result_queue, model_path=""):
         super().__init__(daemon=True)
         self.frame_queue = frame_queue
         self.result_queue = result_queue
+        self.model_path = model_path
+        self.cam_id = "" # Identifies which camera this detector belongs to
         
         # --- PORTABILITY & HARDWARE ---
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -39,12 +41,11 @@ class YOLODetector(threading.Thread):
             "Unknown": (128, 128, 128)   # Grey (Obstacle or Error)
         }
 
-        self.detect_interval = detect_interval
+        self.detect_interval = 0.25 # Default value, can be changed later
         self.last_detect_time = 0.0
         self.running = threading.Event()
         self.running.set()
-        self.enabled = False  # NEW: Detection toggle
-        self.ws_module = None
+        self.enabled = True # Toggle AI detection
 
     def run(self):
         while self.running.is_set():
@@ -143,13 +144,10 @@ class YOLODetector(threading.Thread):
                         cv2.putText(display_frame, f"Slot {slot_id}: {state}", (dx1, dy1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-                # Send to Robot
-                if self.ws_module:
-                    self.ws_module.send_data_to_all(current_states)
-
                 # Send to UI
                 if not self.result_queue.full():
                     self.result_queue.put({
+                        "cam_id": self.cam_id,
                         "frame": display_frame, 
                         "raw_frame": raw_frame,
                         "slots": current_states

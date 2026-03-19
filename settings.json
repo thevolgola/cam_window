@@ -8,13 +8,6 @@
             "enabled": true
         },
         {
-            "id": 2,
-            "name": "Camera 2",
-            "url": "0",
-            "model": "",
-            "enabled": true
-        },
-        {
             "id": 3,
             "name": "Camera 3",
             "url": "rtsp://admin:rtc%402025@192.168.5.111:554/Streaming/Channels/101",
