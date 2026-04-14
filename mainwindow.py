@@ -7,7 +7,8 @@ import json
 import numpy as np
 from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                                QHBoxLayout, QWidget, QPushButton, QFrame,
-                               QMessageBox, QScrollArea, QGridLayout, QStackedWidget, QSizePolicy)
+                               QMessageBox, QScrollArea, QGridLayout, QStackedWidget, QSizePolicy,
+                               QStyle)
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QImage, QPixmap, QFont, QPainter, QColor
 
@@ -43,6 +44,7 @@ class MainWindow(QMainWindow):
         self.active_camera_id = None    # Currently focused camera ID
         self._focused_raw_frame: np.ndarray | None = None
         self.grid_video_labels = {}     # Dictionary mapping cam_id -> QLabel
+        self.sidebar_expanded = True
         
         # Load global settings
         self._app_settings = load_settings()
@@ -82,19 +84,20 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QHBoxLayout(self.central_widget)
-        self.main_layout.setContentsMargins(12, 12, 12, 12)
-        self.main_layout.setSpacing(12)
+        self.main_layout.setContentsMargins(4, 4, 4, 4)
+        self.main_layout.setSpacing(4)
 
         # ── LEFT: Main Display Area ────────────────────────────────────────────
         self.video_container_widget = QWidget()
         self.video_container_layout = QVBoxLayout(self.video_container_widget)
         self.video_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.video_container_layout.setSpacing(6)
         
         # Title bar above video
         self.cam_title = QLabel("Initializing...")
         self.cam_title.setStyleSheet("""
-            font-size: 16px; font-weight: bold; color: #cdd6f4;
-            background-color: #313244; padding: 8px; border-radius: 4px;
+            font-size: 13px; font-weight: bold; color: #cdd6f4;
+            background-color: #313244; padding: 3px 6px; border-radius: 3px;
         """)
         self.cam_title.setAlignment(Qt.AlignCenter)
         self.video_container_layout.addWidget(self.cam_title)
@@ -105,7 +108,9 @@ class MainWindow(QMainWindow):
         # Single View Label
         self.single_video_label = QLabel("Waiting for camera...")
         self.single_video_label.setAlignment(Qt.AlignCenter)
-        self.single_video_label.setStyleSheet("background-color: #11111b; color: #a6adc8; border-radius: 4px;")
+        self.single_video_label.setStyleSheet(
+            "background-color: #11111b; color: #a6adc8; border: 1px solid #313244; border-radius: 3px;"
+        )
         self.single_video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.single_video_label.setMinimumSize(640, 480)
         
@@ -117,7 +122,8 @@ class MainWindow(QMainWindow):
         self.grid_container = QWidget()
         self.grid_container.setStyleSheet("background-color: #11111b;")
         self.grid_layout = QGridLayout(self.grid_container)
-        self.grid_layout.setSpacing(10)
+        self.grid_layout.setContentsMargins(1, 1, 1, 1)
+        self.grid_layout.setSpacing(3)
         
         self.grid_scroll.setWidget(self.grid_container)
         
@@ -128,9 +134,46 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self.video_container_widget, stretch=4)
 
         # ── RIGHT: Sidebar ─────────────────────────────────────────────────────
-        self.sidebar = QVBoxLayout()
-        self.sidebar.setContentsMargins(4, 0, 4, 0)
-        self.sidebar.setSpacing(6)
+        self.sidebar_widget = QFrame()
+        self.sidebar_widget.setObjectName("sidebarWidget")
+        self.sidebar_widget.setStyleSheet("""
+            QFrame#sidebarWidget {
+                background-color: #181825;
+                border: 1px solid #313244;
+                border-radius: 5px;
+            }
+        """)
+        self.sidebar_widget.setMinimumWidth(236)
+        self.sidebar_widget.setMaximumWidth(288)
+
+        self.sidebar = QVBoxLayout(self.sidebar_widget)
+        self.sidebar.setContentsMargins(6, 6, 6, 6)
+        self.sidebar.setSpacing(5)
+
+        sidebar_header = QHBoxLayout()
+        sidebar_header.setContentsMargins(0, 0, 0, 0)
+
+        self.sidebar_title = QLabel("CONTROL PANEL")
+        self.sidebar_title.setFont(QFont("Arial", 10, QFont.Bold))
+        self.sidebar_title.setStyleSheet("color: #89b4fa;")
+        sidebar_header.addWidget(self.sidebar_title)
+
+        sidebar_header.addStretch()
+
+        self.btn_toggle_sidebar = QPushButton()
+        self.btn_toggle_sidebar.clicked.connect(self._toggle_sidebar)
+        self.btn_toggle_sidebar.setFixedSize(28, 28)
+        self.btn_toggle_sidebar.setStyleSheet("""
+            QPushButton {
+                background-color: #313244;
+                color: #cdd6f4;
+                font-size: 14px;
+                padding: 0;
+            }
+        """)
+        self._update_sidebar_toggle_button()
+        sidebar_header.addWidget(self.btn_toggle_sidebar)
+        self.sidebar.addLayout(sidebar_header)
 
         # System Status
         self.sidebar.addWidget(self._section_label("SYSTEM STATUS"))
@@ -157,12 +200,14 @@ class MainWindow(QMainWindow):
         self.sidebar.addWidget(self._section_label("PARKING SLOTS"))
         self.slots_layout = QVBoxLayout()
         self.slots_layout.setAlignment(Qt.AlignTop)
+        self.slots_layout.setSpacing(4)
         self.slots_widget = QWidget()
         self.slots_widget.setLayout(self.slots_layout)
         
         self.slots_scroll = QScrollArea()
         self.slots_scroll.setWidget(self.slots_widget)
         self.slots_scroll.setWidgetResizable(True)
+        self.slots_scroll.setMinimumHeight(180)
         self.slots_scroll.setStyleSheet("QScrollArea { border: none; background-color: #1e1e2e; }")
         
         self.sidebar.addWidget(self.slots_scroll)
@@ -179,6 +224,26 @@ class MainWindow(QMainWindow):
         self.cam_status_label.setStyleSheet("font-size: 11px; color: #cdd6f4;")
         self._refresh_cam_status_label()
         self.sidebar.addWidget(self.cam_status_label)
+
+        self.camera_nav_widget = QWidget()
+        camera_nav_layout = QHBoxLayout(self.camera_nav_widget)
+        camera_nav_layout.setContentsMargins(0, 0, 0, 0)
+        camera_nav_layout.setSpacing(6)
+
+        self.btn_prev_camera = QPushButton("◀ PREVIOUS")
+        self.btn_prev_camera.clicked.connect(lambda: self._select_relative_camera(-1))
+        self.btn_prev_camera.setStyleSheet(
+            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 8px;"
+        )
+        camera_nav_layout.addWidget(self.btn_prev_camera)
+
+        self.btn_next_camera = QPushButton("NEXT ▶")
+        self.btn_next_camera.clicked.connect(lambda: self._select_relative_camera(1))
+        self.btn_next_camera.setStyleSheet(
+            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 8px;"
+        )
+        camera_nav_layout.addWidget(self.btn_next_camera)
+        self.sidebar.addWidget(self.camera_nav_widget)
 
         # View Switcher button
         self.btn_cameras = QPushButton("📹 VIEW ALL CAMERAS")
@@ -216,19 +281,94 @@ class MainWindow(QMainWindow):
         self.sidebar.addWidget(self.btn_settings)
         self.sidebar.addWidget(self.btn_roi)
 
-        self.main_layout.addLayout(self.sidebar, stretch=1)
+        self.main_layout.addWidget(self.sidebar_widget, stretch=0)
+        self._update_camera_nav_buttons()
 
     def _section_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setFont(QFont("Arial", 10, QFont.Bold))
-        lbl.setStyleSheet("color: #89b4fa; margin-top: 8px;")
+        lbl.setFont(QFont("Arial", 9, QFont.Bold))
+        lbl.setStyleSheet("color: #89b4fa; margin-top: 4px;")
         return lbl
 
     def _divider(self) -> QFrame:
         line = QFrame()
         line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("color: #45475a; margin: 4px 0;")
+        line.setStyleSheet("color: #45475a; margin: 2px 0;")
         return line
+
+    def _update_sidebar_toggle_button(self):
+        icon_type = QStyle.SP_ArrowLeft if self.sidebar_expanded else QStyle.SP_ArrowRight
+        tooltip = "Collapse sidebar" if self.sidebar_expanded else "Expand sidebar"
+        self.btn_toggle_sidebar.setIcon(self.style().standardIcon(icon_type))
+        self.btn_toggle_sidebar.setText("")
+        self.btn_toggle_sidebar.setToolTip(tooltip)
+
+    def _toggle_sidebar(self):
+        self.sidebar_expanded = not self.sidebar_expanded
+
+        widgets_to_toggle = [
+            self.sidebar_title,
+            self.hw_label,
+            self.conn_label,
+            self.cam_url_label,
+            self.slots_scroll,
+            self.cam_status_label,
+            self.camera_nav_widget,
+            self.btn_cameras,
+            self.btn_detect,
+            self.btn_settings,
+            self.btn_roi,
+        ]
+
+        section_labels = self.sidebar_widget.findChildren(QLabel)
+        dividers = self.sidebar_widget.findChildren(QFrame)
+
+        if self.sidebar_expanded:
+            self.sidebar_widget.setMinimumWidth(236)
+            self.sidebar_widget.setMaximumWidth(288)
+            for widget in widgets_to_toggle:
+                widget.show()
+            for lbl in section_labels:
+                if lbl not in (self.sidebar_title, self.cam_title):
+                    lbl.show()
+            for divider in dividers:
+                divider.show()
+        else:
+            self.sidebar_widget.setMinimumWidth(52)
+            self.sidebar_widget.setMaximumWidth(52)
+            for widget in widgets_to_toggle:
+                widget.hide()
+            for lbl in section_labels:
+                if lbl not in (self.sidebar_title, self.cam_title):
+                    lbl.hide()
+            for divider in dividers:
+                divider.hide()
+
+        self._update_sidebar_toggle_button()
+
+    def _get_camera_ids_in_order(self) -> list[str]:
+        """Return configured camera IDs in display order."""
+        return [str(cam.get("id")) for cam in self._app_settings.get("cameras", []) if "id" in cam]
+
+    def _select_relative_camera(self, step: int) -> None:
+        """Move focus to the next or previous configured camera."""
+        camera_ids = self._get_camera_ids_in_order()
+        if not camera_ids:
+            return
+
+        if self.active_camera_id not in camera_ids:
+            self._select_camera(camera_ids[0])
+            return
+
+        current_index = camera_ids.index(self.active_camera_id)
+        target_index = (current_index + step) % len(camera_ids)
+        self._select_camera(camera_ids[target_index])
+
+    def _update_camera_nav_buttons(self) -> None:
+        """Enable navigation only when single-camera mode has multiple cameras."""
+        enabled = len(self._get_camera_ids_in_order()) > 1 and not self.grid_mode
+        self.btn_prev_camera.setEnabled(enabled)
+        self.btn_next_camera.setEnabled(enabled)
 
     def _build_camera_grid(self):
         """Build the grid view showing live feeds of all cameras."""
@@ -247,39 +387,62 @@ class MainWindow(QMainWindow):
             self.grid_layout.addWidget(lbl, 0, 0)
             return
 
-        cols = 2
+        available_width = max(self.grid_scroll.viewport().width(), self.grid_scroll.width(), 1)
+        cols = max(2, min(4, available_width // 260))
         for i, cam in enumerate(cameras):
             cam_id = str(cam.get("id"))
             name = cam.get("name", f"Camera {cam_id}")
             
             cam_container = QFrame()
             cam_container.setStyleSheet("""
-                QFrame { background-color: #1e1e2e; border: 2px solid #313244; border-radius: 4px; }
-                QFrame:hover { border: 2px solid #89b4fa; }
+                QFrame { background-color: #1e1e2e; border: 1px solid #313244; border-radius: 3px; }
+                QFrame:hover { border: 1px solid #89b4fa; }
             """)
             clayout = QVBoxLayout(cam_container)
-            clayout.setContentsMargins(5, 5, 5, 5)
-            
-            title_lbl = QLabel(name)
-            title_lbl.setStyleSheet("color: #cdd6f4; font-weight: bold; border: none;")
-            title_lbl.setAlignment(Qt.AlignCenter)
-            clayout.addWidget(title_lbl)
-            
+            clayout.setContentsMargins(2, 2, 2, 2)
+            clayout.setSpacing(2)
+
+            header = QWidget()
+            header.setStyleSheet("background-color: transparent; border: none;")
+            header_layout = QHBoxLayout(header)
+            header_layout.setContentsMargins(0, 0, 0, 0)
+            header_layout.setSpacing(4)
+
+            title_lbl = QLabel(f"CAM {cam_id}")
+            title_lbl.setStyleSheet("""
+                color: #cdd6f4; font-weight: bold; border: none; font-size: 10px;
+                background-color: #313244; padding: 2px 6px; border-radius: 8px;
+            """)
+            title_lbl.setToolTip(name)
+            header_layout.addWidget(title_lbl)
+
+            if name and name != f"Camera {cam_id}":
+                name_lbl = QLabel(name)
+                name_lbl.setStyleSheet("color: #bac2de; border: none; font-size: 10px;")
+                name_lbl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                header_layout.addWidget(name_lbl, 1)
+            else:
+                header_layout.addStretch()
+
             video_lbl = QLabel("Connecting...")
             video_lbl.setAlignment(Qt.AlignCenter)
             video_lbl.setStyleSheet("background-color: #11111b; border: none;")
-            video_lbl.setMinimumSize(320, 240)
-            clayout.addWidget(video_lbl)
-            
+            video_lbl.setMinimumSize(220, 165)
+
             self.grid_video_labels[cam_id] = video_lbl
-            
-            btn = QPushButton("Focus")
+
+            btn = QPushButton("Open")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedHeight(20)
             btn.setStyleSheet("""
                 background-color: #89b4fa; color: #11111b; font-weight: bold;
-                padding: 4px; border-radius: 2px;
+                padding: 1px 8px; border-radius: 10px; font-size: 10px;
             """)
             btn.clicked.connect(lambda checked, cid=cam_id: self._select_camera(str(cid)))
-            clayout.addWidget(btn)
+            header_layout.addWidget(btn)
+
+            clayout.addWidget(header)
+            clayout.addWidget(video_lbl, 1)
 
             row = i // cols
             col = i % cols
@@ -306,12 +469,15 @@ class MainWindow(QMainWindow):
             self.btn_roi.setEnabled(True)
             self._refresh_cam_status_label()
 
+        self._update_camera_nav_buttons()
+
     def _select_camera(self, cam_id: str):
         """Set the active camera for the single view mode."""
         self.active_camera_id = cam_id
         if self.grid_mode:
             self._toggle_camera_list()
         self._refresh_cam_status_label()
+        self._update_camera_nav_buttons()
         
         unit = self.unit_manager.get_unit(cam_id)
         if unit:
@@ -397,6 +563,7 @@ class MainWindow(QMainWindow):
                 self._select_camera(active_ids[0])
             else:
                 self._refresh_cam_status_label()
+                self._update_camera_nav_buttons()
 
     def _resolve_model_path(self, path: str) -> str:
         if not path: return ""
@@ -491,12 +658,12 @@ class MainWindow(QMainWindow):
 
         # Process new frames and states
         for cam_id, res in results.items():
-            frame_rgb = res["frame"]
+            frame_bgr = res["frame"]
             raw_frame = res["raw_frame"]
             
-            h, w, ch = frame_rgb.shape
+            h, w, ch = frame_bgr.shape
             bytes_per_line = ch * w
-            img = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            img = QImage(frame_bgr.data, w, h, bytes_per_line, QImage.Format_BGR888)
             pixmap = QPixmap.fromImage(img)
             
             if self.grid_mode and cam_id in self.grid_video_labels:
@@ -538,18 +705,18 @@ class MainWindow(QMainWindow):
         for slot_id, state in slots_data.items():
             row = QWidget()
             lo = QHBoxLayout(row)
-            lo.setContentsMargins(5, 5, 5, 5)
-            
+            lo.setContentsMargins(4, 3, 4, 3)
+
             lbl_id = QLabel(f"Slot {slot_id}")
-            lbl_id.setStyleSheet("color: #cdd6f4; font-weight: bold; font-size: 14px;")
-            
+            lbl_id.setStyleSheet("color: #cdd6f4; font-weight: bold; font-size: 13px;")
+
             lbl_state = QLabel(state.upper())
             if state == "empty":
-                lbl_state.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 14px;")
+                lbl_state.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 13px;")
             elif state == "occupied":
-                lbl_state.setStyleSheet("color: #f38ba8; font-weight: bold; font-size: 14px;")
+                lbl_state.setStyleSheet("color: #f38ba8; font-weight: bold; font-size: 13px;")
             else:
-                lbl_state.setStyleSheet("color: #bac2de; font-weight: bold; font-size: 14px;")
+                lbl_state.setStyleSheet("color: #bac2de; font-weight: bold; font-size: 13px;")
                 
             lo.addWidget(lbl_id)
             lo.addStretch()

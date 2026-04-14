@@ -42,9 +42,9 @@ QLabel {
 QGroupBox {
     color: #89b4fa;
     border: 1px solid #45475a;
-    border-radius: 8px;
-    margin-top: 12px;
-    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding: 8px;
     font-size: 13px;
     font-weight: bold;
 }
@@ -57,9 +57,9 @@ QGroupBox::title {
 QLineEdit {
     background-color: #313244;
     border: 1px solid #45475a;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #cdd6f4;
-    padding: 6px 10px;
+    padding: 5px 9px;
     font-size: 13px;
     selection-background-color: #89b4fa;
 }
@@ -73,17 +73,17 @@ QLineEdit:disabled {
 QSpinBox {
     background-color: #313244;
     border: 1px solid #45475a;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #cdd6f4;
-    padding: 4px 8px;
+    padding: 3px 7px;
     font-size: 13px;
 }
 QSpinBox:focus {
     border: 1px solid #89b4fa;
 }
 QPushButton {
-    border-radius: 6px;
-    padding: 7px 16px;
+    border-radius: 5px;
+    padding: 6px 14px;
     font-size: 13px;
     font-weight: bold;
     color: #11111b;
@@ -281,7 +281,7 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("⚙  Camera Settings")
-        self.setMinimumSize(600, 480)
+        self.setMinimumSize(580, 456)
         self.setStyleSheet(DIALOG_STYLE)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -292,8 +292,8 @@ class SettingsDialog(QDialog):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 20)
-        root.setSpacing(12)
+        root.setContentsMargins(14, 14, 14, 14)
+        root.setSpacing(10)
 
         # Title
         title = QLabel("System Settings")
@@ -324,11 +324,11 @@ class SettingsDialog(QDialog):
         # Scroll area for camera rows
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setMinimumHeight(260)
+        self.scroll.setMinimumHeight(240)
         self.cam_container = QWidget()
         self.cam_layout = QVBoxLayout(self.cam_container)
-        self.cam_layout.setContentsMargins(0, 0, 8, 0)
-        self.cam_layout.setSpacing(6)
+        self.cam_layout.setContentsMargins(0, 0, 6, 0)
+        self.cam_layout.setSpacing(5)
         self.cam_layout.addStretch()
         self.scroll.setWidget(self.cam_container)
         root.addWidget(self.scroll, stretch=1)

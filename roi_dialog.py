@@ -45,7 +45,7 @@ QDialog {
 }
 QTabWidget::pane {
     border: 1px solid #45475a;
-    border-radius: 6px;
+    border-radius: 5px;
     background: #1e1e2e;
 }
 QTabBar::tab {
@@ -66,8 +66,8 @@ QLabel {
     font-size: 13px;
 }
 QPushButton {
-    border-radius: 6px;
-    padding: 7px 16px;
+    border-radius: 5px;
+    padding: 6px 14px;
     font-size: 13px;
     font-weight: bold;
 }
@@ -108,9 +108,9 @@ QPushButton#btn_cancel:hover { background-color: #585b70; }
 QPushButton[slot_btn="true"] {
     background-color: #313244;
     color: #cdd6f4;
-    border: 2px solid #45475a;
-    border-radius: 6px;
-    padding: 6px 14px;
+    border: 1px solid #45475a;
+    border-radius: 5px;
+    padding: 6px 12px;
     font-size: 13px;
     font-weight: bold;
     min-width: 42px;
@@ -118,13 +118,13 @@ QPushButton[slot_btn="true"] {
 QPushButton[slot_btn="true"]:checked {
     background-color: #cba6f7;
     color: #11111b;
-    border: 2px solid #cba6f7;
+    border: 1px solid #cba6f7;
 }
 QPushButton#btn_add_slot {
     background-color: #fab387;
     color: #11111b;
-    border-radius: 6px;
-    padding: 6px 14px;
+    border-radius: 5px;
+    padding: 6px 12px;
     font-size: 13px;
     font-weight: bold;
 }
@@ -156,7 +156,7 @@ class ROICanvas(QLabel):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMinimumSize(640, 400)
         self.setStyleSheet(
-            "background-color: #11111b; border: 2px solid #45475a; border-radius: 8px;"
+            "background-color: #11111b; border: 1px solid #45475a; border-radius: 6px;"
         )
         self.setCursor(QCursor(Qt.CrossCursor))
 
@@ -370,7 +370,7 @@ class ROIDialog(QDialog):
                  current_rois: dict | None = None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("📐  ROI Setup")
-        self.setMinimumSize(800, 620)
+        self.setMinimumSize(780, 600)
         self.setStyleSheet(STYLE)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -409,8 +409,8 @@ class ROIDialog(QDialog):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(16, 16, 16, 16)
-        root.setSpacing(10)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(8)
 
         # Title
         title = QLabel("ROI Setup")
@@ -487,8 +487,8 @@ class ROIDialog(QDialog):
     def _build_auto_tab(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
-        lay.setContentsMargins(12, 12, 12, 12)
-        lay.setSpacing(8)
+        lay.setContentsMargins(10, 10, 10, 10)
+        lay.setSpacing(7)
 
         info = QLabel(
             "Click <b>Detect ROIs</b> to run YOLO on the snapshot and propose "
@@ -530,8 +530,8 @@ class ROIDialog(QDialog):
     def _build_manual_tab(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
-        lay.setContentsMargins(12, 12, 12, 12)
-        lay.setSpacing(8)
+        lay.setContentsMargins(10, 10, 10, 10)
+        lay.setSpacing(7)
 
         info = QLabel(
             "Select a slot ID, then <b>drag a rectangle</b> on the camera frame above."
