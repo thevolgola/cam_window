@@ -1,9 +1,12 @@
+import math
+import queue
 import threading
 import time
-from ultralytics import YOLO
+
 import cv2
-import queue
+import numpy as np
 import torch
+from ultralytics import YOLO
 
 class YOLODetector(threading.Thread):
     def __init__(self, frame_queue, result_queue, model_path=""):
@@ -46,6 +49,86 @@ class YOLODetector(threading.Thread):
         self.running = threading.Event()
         self.running.set()
         self.enabled = True # Toggle AI detection
+
+    @staticmethod
+    def _normalize_roi(roi: dict | list | tuple | None) -> dict | None:
+        """Convert persisted ROI data into a rotated rectangle."""
+        if roi is None:
+            return None
+
+        try:
+            if isinstance(roi, dict):
+                cx = float(roi.get("cx"))
+                cy = float(roi.get("cy"))
+                width = max(10.0, float(roi.get("w")))
+                height = max(10.0, float(roi.get("h")))
+                angle = float(roi.get("angle", 0.0))
+            elif isinstance(roi, (list, tuple)) and len(roi) >= 4:
+                x1, y1, x2, y2 = [float(value) for value in roi[:4]]
+                cx = (x1 + x2) / 2.0
+                cy = (y1 + y2) / 2.0
+                width = max(10.0, abs(x2 - x1))
+                height = max(10.0, abs(y2 - y1))
+                angle = 0.0
+            else:
+                return None
+        except (TypeError, ValueError):
+            return None
+
+        return {
+            "cx": cx,
+            "cy": cy,
+            "w": width,
+            "h": height,
+            "angle": angle % 360.0,
+        }
+
+    @classmethod
+    def _roi_points(cls, roi: dict) -> np.ndarray:
+        """Return ROI polygon points in frame space."""
+        normalized = cls._normalize_roi(roi)
+        if normalized is None:
+            return np.empty((0, 2), dtype=np.float32)
+
+        half_w = normalized["w"] / 2.0
+        half_h = normalized["h"] / 2.0
+        local_points = np.array(
+            [
+                [-half_w, -half_h],
+                [half_w, -half_h],
+                [half_w, half_h],
+                [-half_w, half_h],
+            ],
+            dtype=np.float32,
+        )
+
+        radians = math.radians(normalized["angle"])
+        rotation = np.array(
+            [
+                [math.cos(radians), -math.sin(radians)],
+                [math.sin(radians), math.cos(radians)],
+            ],
+            dtype=np.float32,
+        )
+        return (local_points @ rotation.T) + np.array([normalized["cx"], normalized["cy"]], dtype=np.float32)
+
+    @classmethod
+    def _point_in_roi(cls, roi: dict | list | tuple, point: tuple[float, float]) -> bool:
+        polygon = cls._roi_points(roi)
+        if polygon.size == 0:
+            return False
+        return cv2.pointPolygonTest(polygon, point, False) >= 0
+
+    @classmethod
+    def _display_roi_points(cls, roi: dict | list | tuple, scale_x: float, scale_y: float) -> np.ndarray:
+        polygon = cls._roi_points(roi)
+        if polygon.size == 0:
+            return np.empty((0, 2), dtype=np.int32)
+
+        scaled = polygon.copy()
+        scaled[:, 0] *= scale_x
+        scaled[:, 1] *= scale_y
+        return scaled.astype(np.int32)
 
     def run(self):
         while self.running.is_set():
@@ -93,15 +176,18 @@ class YOLODetector(threading.Thread):
                                 # Detects your layout or cars to set the ROIs
                                 for det in found_detections:
                                     s_id = 1 if det['center'][0] < midpoint else 2
-                                    self.slot_rois[s_id] = [int(x) for x in det['coords']]
+                                    self.slot_rois[s_id] = self._normalize_roi([int(x) for x in det['coords']])
                                     self.slot_states[s_id] = det['label']
                             else:
                                 # --- MONITORING MODE (Logic for 4 Classes) ---
                                 new_states = {sid: "Unknown" for sid in self.slot_rois.keys()}
 
-                                for slot_id, (sx1, sy1, sx2, sy2) in self.slot_rois.items():
+                                for slot_id, roi in self.slot_rois.items():
                                     # Get all items inside this slot area
-                                    in_slot = [d for d in found_detections if sx1 <= d['center'][0] <= sx2 and sy1 <= d['center'][1] <= sy2]
+                                    in_slot = [
+                                        detection for detection in found_detections
+                                        if self._point_in_roi(roi, detection['center'])
+                                    ]
 
                                     if in_slot:
                                         # Sort by highest confidence
@@ -136,13 +222,22 @@ class YOLODetector(threading.Thread):
                         state = current_states.get(slot_id, "Unknown")
                         color = self.STATE_COLORS.get(state, (128, 128, 128))
 
-                        # Scaling ROI back to display size
-                        dx1, dy1 = int(coords[0] * scale_x), int(coords[1] * scale_y)
-                        dx2, dy2 = int(coords[2] * scale_x), int(coords[3] * scale_y)
+                        polygon = self._display_roi_points(coords, scale_x, scale_y)
+                        if polygon.size == 0:
+                            continue
 
-                        cv2.rectangle(display_frame, (dx1, dy1), (dx2, dy2), color, 2)
-                        cv2.putText(display_frame, f"Slot {slot_id}: {state}", (dx1, dy1 - 10),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                        cv2.polylines(display_frame, [polygon], True, color, 2)
+                        label_x = int(np.min(polygon[:, 0]))
+                        label_y = int(np.min(polygon[:, 1])) - 10
+                        cv2.putText(
+                            display_frame,
+                            f"Slot {slot_id}: {state}",
+                            (label_x, label_y),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            color,
+                            2,
+                        )
 
                 # Send to UI
                 if not self.result_queue.full():

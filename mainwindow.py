@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
         self.grid_mode = False          # True = View all cameras
         self.active_camera_id = None    # Currently focused camera ID
         self._focused_raw_frame: np.ndarray | None = None
+        self._latest_raw_frames: dict[str, np.ndarray] = {}
         self.grid_video_labels = {}     # Dictionary mapping cam_id -> QLabel
         self.sidebar_expanded = True
         
@@ -261,6 +262,13 @@ class MainWindow(QMainWindow):
         )
         self.sidebar.addWidget(self.btn_detect)
 
+        self.btn_refresh_camera = QPushButton("🔄 REFRESH CAMERA")
+        self.btn_refresh_camera.clicked.connect(self._refresh_camera_connection)
+        self.btn_refresh_camera.setStyleSheet(
+            "background-color: #f9e2af; color: #11111b; font-weight: bold; padding: 10px;"
+        )
+        self.sidebar.addWidget(self.btn_refresh_camera)
+
         self.sidebar.addWidget(self._divider())
 
         # Action Buttons
@@ -316,6 +324,7 @@ class MainWindow(QMainWindow):
             self.camera_nav_widget,
             self.btn_cameras,
             self.btn_detect,
+            self.btn_refresh_camera,
             self.btn_settings,
             self.btn_roi,
         ]
@@ -460,6 +469,7 @@ class MainWindow(QMainWindow):
             
             self.btn_detect.setEnabled(False)
             self.btn_roi.setEnabled(False)
+            self.btn_refresh_camera.setEnabled(False)
         else:
             self.video_stack.setCurrentIndex(0)
             self.btn_cameras.setText("📹 VIEW ALL CAMERAS")
@@ -468,16 +478,19 @@ class MainWindow(QMainWindow):
             self.btn_detect.setEnabled(True)
             self.btn_roi.setEnabled(True)
             self._refresh_cam_status_label()
+            self._refresh_camera_button_state()
 
         self._update_camera_nav_buttons()
 
     def _select_camera(self, cam_id: str):
         """Set the active camera for the single view mode."""
         self.active_camera_id = cam_id
+        self._focused_raw_frame = self._latest_raw_frames.get(cam_id)
         if self.grid_mode:
             self._toggle_camera_list()
         self._refresh_cam_status_label()
         self._update_camera_nav_buttons()
+        self._refresh_camera_button_state()
         
         unit = self.unit_manager.get_unit(cam_id)
         if unit:
@@ -514,6 +527,33 @@ class MainWindow(QMainWindow):
             
             self.cam_title.setText(f"📹 {name}")
             self.cam_status_label.setText(f"Camera: {name}\nModel: {model_name}")
+
+    def _refresh_camera_button_state(self) -> None:
+        """Update the refresh button according to the active camera connection state."""
+        if self.grid_mode or not self.active_camera_id:
+            self.btn_refresh_camera.setEnabled(False)
+            self.btn_refresh_camera.setText("🔄 REFRESH CAMERA")
+            return
+
+        unit = self.unit_manager.get_unit(self.active_camera_id)
+        if not unit:
+            self.btn_refresh_camera.setEnabled(False)
+            self.btn_refresh_camera.setText("🔄 REFRESH CAMERA")
+            return
+
+        camera = unit.camera
+        if camera.is_connecting():
+            self.btn_refresh_camera.setEnabled(False)
+            self.btn_refresh_camera.setText("⏳ CONNECTING...")
+        elif camera.is_connected:
+            self.btn_refresh_camera.setEnabled(False)
+            self.btn_refresh_camera.setText("✅ CONNECTED")
+        elif camera.is_waiting_for_refresh():
+            self.btn_refresh_camera.setEnabled(True)
+            self.btn_refresh_camera.setText("🔄 REFRESH CAMERA")
+        else:
+            self.btn_refresh_camera.setEnabled(False)
+            self.btn_refresh_camera.setText("⏳ WAITING...")
             
     # ── Action Handlers ────────────────────────────────────────────────
 
@@ -536,6 +576,21 @@ class MainWindow(QMainWindow):
             self.btn_detect.setText("🔴 AI DETECTION IS OFF")
             self.btn_detect.setStyleSheet("background-color: #f38ba8; color: #11111b; font-weight: bold; font-size: 14px; padding: 10px;")
 
+    def _refresh_camera_connection(self) -> None:
+        """Request a manual reconnect for the actively focused camera."""
+        if not self.active_camera_id:
+            return
+
+        unit = self.unit_manager.get_unit(self.active_camera_id)
+        if not unit:
+            return
+
+        requested, message = unit.request_camera_refresh()
+        if not requested and "spam" not in message.lower():
+            QMessageBox.information(self, "Refresh Camera", message)
+
+        self._refresh_camera_button_state()
+
     # ── Settings ───────────────────────────────────────────────────────────────
 
     def open_settings(self):
@@ -546,6 +601,8 @@ class MainWindow(QMainWindow):
             
             ws_cfg = self._app_settings.get("websocket", {})
             self.ws_server.stop()
+            if self.ws_server.is_alive():
+                self.ws_server.join(timeout=2.0)
             self.ws_server = WebSocketModule(
                 host=ws_cfg.get("host", "0.0.0.0"),
                 port=ws_cfg.get("port", 8765)
@@ -564,6 +621,7 @@ class MainWindow(QMainWindow):
             else:
                 self._refresh_cam_status_label()
                 self._update_camera_nav_buttons()
+                self._refresh_camera_button_state()
 
     def _resolve_model_path(self, path: str) -> str:
         if not path: return ""
@@ -582,18 +640,19 @@ class MainWindow(QMainWindow):
         if not unit:
             return
             
-        if self._focused_raw_frame is None:
+        snapshot = self._latest_raw_frames.get(self.active_camera_id)
+        if snapshot is None:
             QMessageBox.warning(self, "No Frame", "Wait for the camera to connect before opening ROI setup.")
             return
 
         with unit.detect.lock:
-            current_rois = unit.detect.slot_rois.copy()
+            current_rois = ROIDialog.normalize_rois(unit.detect.slot_rois)
 
-        dialog = ROIDialog(self._focused_raw_frame, unit.detect, current_rois, self)
+        dialog = ROIDialog(snapshot.copy(), unit.detect, current_rois, self)
         if dialog.exec() == ROIDialog.Accepted:
             new_rois = dialog.get_rois()
             with unit.detect.lock:
-                unit.detect.slot_rois = new_rois
+                unit.detect.slot_rois = ROIDialog.normalize_rois(new_rois)
             self.save_rois(silent=True)
 
     def save_rois(self, silent=False):
@@ -625,11 +684,16 @@ class MainWindow(QMainWindow):
                 if "parking_slots" in config:
                     legacy_rois = config["parking_slots"]
                     active = self.active_camera_id if self.active_camera_id else "1"
-                    config = {active: legacy_rois}
+                    config = {str(active): ROIDialog.normalize_rois(legacy_rois)}
                 elif any(isinstance(v, list) for v in config.values()): 
                     # Another legacy raw dict
                     active = self.active_camera_id if self.active_camera_id else "1"
-                    config = {active: config}
+                    config = {str(active): ROIDialog.normalize_rois(config)}
+                else:
+                    config = {
+                        str(cam_id): ROIDialog.normalize_rois(cam_rois)
+                        for cam_id, cam_rois in config.items()
+                    }
                 
                 self.unit_manager.apply_rois(config)
         except:
@@ -647,7 +711,8 @@ class MainWindow(QMainWindow):
         # Connection status for offline units
         for cam_id, unit in self.unit_manager.units.items():
             if not unit.camera.is_connected:
-                placeholder = self._create_placeholder_pixmap("Connecting or Offline...", 640, 480)
+                status_text = unit.camera.get_status_text() or "Connecting or Offline..."
+                placeholder = self._create_placeholder_pixmap(status_text, 640, 480)
                 if self.grid_mode and cam_id in self.grid_video_labels:
                     grid_lbl = self.grid_video_labels[cam_id]
                     scaled = placeholder.scaled(grid_lbl.width(), grid_lbl.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -660,6 +725,7 @@ class MainWindow(QMainWindow):
         for cam_id, res in results.items():
             frame_bgr = res["frame"]
             raw_frame = res["raw_frame"]
+            self._latest_raw_frames[str(cam_id)] = raw_frame.copy()
             
             h, w, ch = frame_bgr.shape
             bytes_per_line = ch * w
@@ -676,6 +742,8 @@ class MainWindow(QMainWindow):
                 scaled_pixmap = pixmap.scaled(self.single_video_label.width(), self.single_video_label.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.single_video_label.setPixmap(scaled_pixmap)
                 self._update_sidebar_slots(res["slots"])
+
+        self._refresh_camera_button_state()
         
         merged_states = self.unit_manager.get_all_slot_states()
         self.ws_server.send_data_to_all(merged_states)
@@ -730,6 +798,8 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         self.unit_manager.stop_all()
         self.ws_server.stop()
+        if self.ws_server.is_alive():
+            self.ws_server.join(timeout=2.0)
         event.accept()
 
 

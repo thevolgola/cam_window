@@ -13,6 +13,55 @@
             "url": "rtsp://admin:rtc%402025@192.168.5.111:554/Streaming/Channels/101",
             "model": "",
             "enabled": true
+        },
+        {
+            "id": 4,
+            "name": "Camera 4",
+            "url": "rtsp://admin:RTC@1122@192.168.5.70:554/Streaming/Channels/101",
+            "model": "/home/tmh/visionGUI/runs/detect/train11/weights/best.pt",
+            "enabled": true
+        },
+        {
+            "id": 5,
+            "name": "Camera 5",
+            "url": "rtsp://admin:RTC@1122@192.168.5.74:554/Streaming/Channels/101",
+            "model": "/home/tmh/visionGUI/runs/detect/train19/weights/best.pt",
+            "enabled": true
+        },
+        {
+            "id": 6,
+            "name": "Camera 6",
+            "url": "rtsp://admin:RTC@1122@192.168.5.71:554/Streaming/Channels/101",
+            "model": "/home/tmh/visionGUI/runs/detect/train11/weights/best.pt",
+            "enabled": true
+        },
+        {
+            "id": 7,
+            "name": "Camera 7",
+            "url": "rtsp://admin:RTC@1122@192.168.5.78:554/Streaming/Channels/101",
+            "model": "",
+            "enabled": true
+        },
+        {
+            "id": 8,
+            "name": "Camera 8",
+            "url": "rtsp://admin:RTC@1122@192.168.5.79:554/Streaming/Channels/101",
+            "model": "",
+            "enabled": true
+        },
+        {
+            "id": 9,
+            "name": "Camera 9",
+            "url": "rtsp://admin:RTC@1122@192.168.5.83:554/Streaming/Channels/101",
+            "model": "",
+            "enabled": true
+        },
+        {
+            "id": 10,
+            "name": "Camera 10",
+            "url": "0",
+            "model": "",
+            "enabled": true
         }
     ],
     "websocket": {

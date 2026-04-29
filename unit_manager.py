@@ -1,6 +1,6 @@
 import queue
-import time
 from typing import Dict, List, Optional
+
 from camera import CameraModule
 from detect import YOLODetector
 
@@ -38,6 +38,10 @@ class CameraUnit:
         """Change the AI model for this camera."""
         self.model_path = model_path
         self.detect.change_model(model_path)
+
+    def request_camera_refresh(self) -> tuple[bool, str]:
+        """Request one debounced manual camera reconnect attempt."""
+        return self.camera.request_refresh()
 
     def set_rois(self, rois: dict):
         """Set the Region of Interest bounding boxes for this camera."""

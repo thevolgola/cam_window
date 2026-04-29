@@ -218,19 +218,19 @@ When loading settings:
 All buttons use consistent styling. Examples:
 ```python
 # Green (confirm/add)
-"background-color: #a6e3a1; color: #11111b;"
+"background-color: #a6e3a1; color: #051364;"
 
 # Red (delete/stop)  
-"background-color: #f38ba8; color: #11111b;"
+"background-color: #f38ba8; color: #051364;"
 
 # Blue (info/switch)
-"background-color: #74c7ec; color: #11111b;"
+"background-color: #74c7ec; color: #051364;"
 
 # Orange (test/show)
-"background-color: #fab387; color: #11111b;"
+"background-color: #fab387; color: #051364;"
 
 # Purple (settings)
-"background-color: #cba6f7; color: #11111b;"
+"background-color: #cba6f7; color: #051364;"
 ```
 - Restrict of using icon.
 ---

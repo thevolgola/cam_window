@@ -1,9 +1,10 @@
-import asyncio
-import websockets
 import json
-import threading
 import os
+import threading
+import asyncio
 from datetime import datetime
+
+import websockets
 
 class WebSocketModule(threading.Thread):
     def __init__(self, host="0.0.0.0", port=8765,
@@ -20,6 +21,9 @@ class WebSocketModule(threading.Thread):
         self.max_log_size = max_log_size_mb * 1024 * 1024  # Convert MB to bytes
         self.loop = None
         self.clients = set()
+        self.server = None
+        self.stop_event = None
+        self._stopping = threading.Event()
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
@@ -54,7 +58,7 @@ class WebSocketModule(threading.Thread):
         Receives data from YOLODetector and broadcasts to the robot server.
         Transforms raw labels into robot-ready 'states'.
         """
-        if not self.loop:
+        if not self.loop or self._stopping.is_set():
             return
 
         object_list = []
@@ -102,14 +106,32 @@ class WebSocketModule(threading.Thread):
                     print(f"Error broadcasting to robot: {e}")
 
     async def main(self):
-        async with websockets.serve(self.handler, self.host, self.port):
-            await asyncio.Future()  # Keep server running
+        self.stop_event = asyncio.Event()
+        async with websockets.serve(self.handler, self.host, self.port) as server:
+            self.server = server
+            await self.stop_event.wait()
+
+        if self.clients:
+            await asyncio.gather(
+                *(client.close() for client in list(self.clients)),
+                return_exceptions=True,
+            )
 
     def run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.main())
+        try:
+            self.loop.run_until_complete(self.main())
+            self.loop.run_until_complete(self.loop.shutdown_asyncgens())
+        except Exception as e:
+            print(f"[WebSocketModule] Server stopped with error: {e}")
+        finally:
+            self.server = None
+            self.stop_event = None
+            self.loop.close()
+            self.loop = None
 
     def stop(self):
-        if self.loop:
-            self.loop.call_soon_threadsafe(self.loop.stop)
+        self._stopping.set()
+        if self.loop and not self.loop.is_closed() and self.stop_event:
+            self.loop.call_soon_threadsafe(self.stop_event.set)
