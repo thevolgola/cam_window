@@ -717,8 +717,9 @@ class MainWindow(QMainWindow):
 
     def _resolve_model_path(self, path: str) -> str:
         if not path: return ""
-        if os.path.isabs(path): return path
-        return os.path.join(BASE_DIR, path)
+        if os.path.isabs(path): return os.path.normpath(path)
+        full_path = os.path.join(BASE_DIR, path)
+        return os.path.normpath(full_path)
 
     # ── ROI Dialog ─────────────────────────────────────────────────────────────
 
