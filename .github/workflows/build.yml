@@ -22,7 +22,7 @@ jobs:
         run: |
 
           pyinstaller --noconfirm --onefile --windowed `
-          --name "CamWindow_Pro" `
+          --name "CamWindow" `
           --exclude-module pytest `
           --exclude-module flake8 `
           --exclude-module unittest `
@@ -34,4 +34,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Production-EXE
-          path: dist/Final_App.exe
+          path: dist/camai.exe
