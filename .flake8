@@ -1,0 +1,11 @@
+[flake8]
+exclude =
+    .git,
+    __pycache__,
+    .qtcreator,
+    venv,
+    .venv,
+    env,
+    build,
+    dist
+max-line-length = 127

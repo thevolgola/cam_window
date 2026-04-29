@@ -1,0 +1,6 @@
+PySide6>=6.10.2
+opencv-python-headless>=4.13.0
+ultralytics>=8.4.19
+torch>=2.10.0
+numpy>=2.2.6
+websockets>=16.0
