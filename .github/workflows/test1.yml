@@ -37,7 +37,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python -c "import os; os.path.exists('requirements.txt') and os.system('pip install -r requirements.txt')"
 
     - name: Lint with flake8
       run: |
