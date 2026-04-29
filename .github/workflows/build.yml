@@ -22,7 +22,7 @@ jobs:
         run: |
 
           pyinstaller --noconfirm --onefile --windowed `
-          --name "CamWindow" `
+          --name "camai" `
           --exclude-module pytest `
           --exclude-module flake8 `
           --exclude-module unittest `
