@@ -19,6 +19,30 @@ from roi_dialog import ROIDialog
 
 # Portability
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MESSAGE_BOX_STYLE = """
+QMessageBox {
+    background-color: #1e1e2e;
+}
+QMessageBox QLabel {
+    color: #f5f7ff;
+    font-size: 13px;
+}
+QMessageBox QPushButton {
+    background-color: #89b4fa;
+    color: #11111b;
+    border: 1px solid #74c7ec;
+    border-radius: 6px;
+    padding: 4px 10px;
+    min-width: 64px;
+    min-height: 28px;
+    margin: 10px 6px 12px 6px;
+    font-size: 11px;
+    font-weight: bold;
+}
+QMessageBox QPushButton:hover {
+    background-color: #a0c4fc;
+}
+"""
 
 
 class MainWindow(QMainWindow):
@@ -32,8 +56,9 @@ class MainWindow(QMainWindow):
             QLabel      { color: #cdd6f4; }
             QPushButton {
                 border-radius: 6px;
-                padding: 8px 14px;
-                font-size: 13px;
+                min-height: 28px;
+                padding: 4px 10px;
+                font-size: 11px;
                 font-weight: bold;
                 color: #11111b;
             }
@@ -163,12 +188,12 @@ class MainWindow(QMainWindow):
 
         self.btn_toggle_sidebar = QPushButton()
         self.btn_toggle_sidebar.clicked.connect(self._toggle_sidebar)
-        self.btn_toggle_sidebar.setFixedSize(28, 28)
+        self.btn_toggle_sidebar.setMinimumSize(70, 36)
         self.btn_toggle_sidebar.setStyleSheet("""
             QPushButton {
                 background-color: #313244;
                 color: #cdd6f4;
-                font-size: 14px;
+                font-size: 12px;
                 padding: 0;
             }
         """)
@@ -234,15 +259,17 @@ class MainWindow(QMainWindow):
         self.btn_prev_camera = QPushButton("◀ PREVIOUS")
         self.btn_prev_camera.clicked.connect(lambda: self._select_relative_camera(-1))
         self.btn_prev_camera.setStyleSheet(
-            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 8px;"
+            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 6px 9px;"
         )
+        self.btn_prev_camera.setMinimumHeight(28)
         camera_nav_layout.addWidget(self.btn_prev_camera)
 
         self.btn_next_camera = QPushButton("NEXT ▶")
         self.btn_next_camera.clicked.connect(lambda: self._select_relative_camera(1))
         self.btn_next_camera.setStyleSheet(
-            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 8px;"
+            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 6px 9px;"
         )
+        self.btn_next_camera.setMinimumHeight(28)
         camera_nav_layout.addWidget(self.btn_next_camera)
         self.sidebar.addWidget(self.camera_nav_widget)
 
@@ -250,23 +277,26 @@ class MainWindow(QMainWindow):
         self.btn_cameras = QPushButton("📹 VIEW ALL CAMERAS")
         self.btn_cameras.clicked.connect(self._toggle_camera_list)
         self.btn_cameras.setStyleSheet(
-            "background-color: #fab387; color: #11111b; font-weight: bold; padding: 10px;"
+            "background-color: #fab387; color: #11111b; font-weight: bold; padding: 6px 10px;"
         )
+        self.btn_cameras.setMinimumHeight(28)
         self.sidebar.addWidget(self.btn_cameras)
 
         # Detection toggle button
         self.btn_detect = QPushButton("🔴 AI DETECTION IS OFF")
         self.btn_detect.clicked.connect(self._toggle_detection)
         self.btn_detect.setStyleSheet(
-            "background-color: #f38ba8; color: #11111b; font-weight: bold; padding: 10px;"
+            "background-color: #f38ba8; color: #11111b; font-weight: bold; padding: 6px 10px;"
         )
+        self.btn_detect.setMinimumHeight(28)
         self.sidebar.addWidget(self.btn_detect)
 
         self.btn_refresh_camera = QPushButton("🔄 REFRESH CAMERA")
         self.btn_refresh_camera.clicked.connect(self._refresh_camera_connection)
         self.btn_refresh_camera.setStyleSheet(
-            "background-color: #f9e2af; color: #11111b; font-weight: bold; padding: 10px;"
+            "background-color: #f9e2af; color: #11111b; font-weight: bold; padding: 6px 10px;"
         )
+        self.btn_refresh_camera.setMinimumHeight(28)
         self.sidebar.addWidget(self.btn_refresh_camera)
 
         self.sidebar.addWidget(self._divider())
@@ -277,14 +307,16 @@ class MainWindow(QMainWindow):
         self.btn_settings = QPushButton("⚙  SETTINGS")
         self.btn_settings.clicked.connect(self.open_settings)
         self.btn_settings.setStyleSheet(
-            "background-color: #cba6f7; color: #11111b; font-weight: bold; padding: 10px;"
+            "background-color: #cba6f7; color: #11111b; font-weight: bold; padding: 6px 10px;"
         )
+        self.btn_settings.setMinimumHeight(28)
 
         self.btn_roi = QPushButton("📐  SET ROI")
         self.btn_roi.clicked.connect(self.open_roi_dialog)
         self.btn_roi.setStyleSheet(
-            "background-color: #89dceb; color: #11111b; font-weight: bold; padding: 10px;"
+            "background-color: #89dceb; color: #11111b; font-weight: bold; padding: 6px 10px;"
         )
+        self.btn_roi.setMinimumHeight(28)
 
         self.sidebar.addWidget(self.btn_settings)
         self.sidebar.addWidget(self.btn_roi)
@@ -311,6 +343,57 @@ class MainWindow(QMainWindow):
         self.btn_toggle_sidebar.setText("")
         self.btn_toggle_sidebar.setToolTip(tooltip)
 
+    def _show_message(
+        self,
+        icon: QMessageBox.Icon,
+        title: str,
+        text: str,
+        buttons: QMessageBox.StandardButton = QMessageBox.Ok,
+        default_button: QMessageBox.StandardButton | None = None,
+        informative_text: str | None = None,
+    ) -> QMessageBox.StandardButton:
+        """Show a simple native message box with optional explanatory text."""
+        main_text = text
+        detail_text = informative_text
+        if detail_text is None and "\n\n" in text:
+            main_text, detail_text = text.split("\n\n", 1)
+
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(icon)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(main_text)
+        if detail_text:
+            msg_box.setInformativeText(detail_text)
+        msg_box.setStandardButtons(buttons)
+        if default_button is not None:
+            msg_box.setDefaultButton(default_button)
+        msg_box.setStyleSheet(MESSAGE_BOX_STYLE)
+        if msg_box.layout() is not None:
+            msg_box.layout().setContentsMargins(16, 14, 16, 22)
+            msg_box.layout().setSpacing(12)
+        text_label = msg_box.findChild(QLabel, "qt_msgbox_label")
+        if text_label is not None:
+            text_label.setWordWrap(True)
+            text_label.setMinimumWidth(360)
+            text_label.setMaximumWidth(440)
+            text_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            text_label.setContentsMargins(6, 0, 0, 0)
+        info_label = msg_box.findChild(QLabel, "qt_msgbox_informativelabel")
+        if info_label is not None:
+            info_label.setWordWrap(True)
+            info_label.setMinimumWidth(360)
+            info_label.setMaximumWidth(440)
+            info_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            info_label.setContentsMargins(6, 2, 0, 0)
+        icon_label = msg_box.findChild(QLabel, "qt_msgboxex_icon_label")
+        if icon_label is not None:
+            icon_label.setFixedWidth(46)
+            icon_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        msg_box.adjustSize()
+        size_hint = msg_box.sizeHint()
+        msg_box.resize(max(size_hint.width(), 580), max(size_hint.height(), 220))
+        return QMessageBox.StandardButton(msg_box.exec())
+
     def _toggle_sidebar(self):
         self.sidebar_expanded = not self.sidebar_expanded
 
@@ -335,6 +418,9 @@ class MainWindow(QMainWindow):
         if self.sidebar_expanded:
             self.sidebar_widget.setMinimumWidth(236)
             self.sidebar_widget.setMaximumWidth(288)
+            self.sidebar.setContentsMargins(6, 6, 6, 6)
+            self.sidebar.setSpacing(5)
+            self.btn_toggle_sidebar.setMinimumSize(28, 28)
             for widget in widgets_to_toggle:
                 widget.show()
             for lbl in section_labels:
@@ -342,16 +428,21 @@ class MainWindow(QMainWindow):
                     lbl.show()
             for divider in dividers:
                 divider.show()
+            self.sidebar_title.show()
         else:
-            self.sidebar_widget.setMinimumWidth(52)
-            self.sidebar_widget.setMaximumWidth(52)
+            self.sidebar_widget.setMinimumWidth(44)
+            self.sidebar_widget.setMaximumWidth(44)
+            self.sidebar.setContentsMargins(4, 4, 4, 4)
+            self.sidebar.setSpacing(2)
+            self.btn_toggle_sidebar.setMinimumSize(28, 28)
             for widget in widgets_to_toggle:
                 widget.hide()
             for lbl in section_labels:
-                if lbl not in (self.sidebar_title, self.cam_title):
+                if lbl is not self.cam_title:
                     lbl.hide()
             for divider in dividers:
                 divider.hide()
+            self.sidebar_title.hide()
 
         self._update_sidebar_toggle_button()
 
@@ -440,12 +531,13 @@ class MainWindow(QMainWindow):
 
             self.grid_video_labels[cam_id] = video_lbl
 
-            btn = QPushButton("Open")
+            btn = QPushButton("OPEN CAMERA")
             btn.setCursor(Qt.PointingHandCursor)
-            btn.setFixedHeight(20)
+            btn.setMinimumHeight(28)
+            btn.setMinimumWidth(84)
             btn.setStyleSheet("""
                 background-color: #89b4fa; color: #11111b; font-weight: bold;
-                padding: 1px 8px; border-radius: 10px; font-size: 10px;
+                padding: 3px 8px; border-radius: 8px; font-size: 10px;
             """)
             btn.clicked.connect(lambda checked, cid=cam_id: self._select_camera(str(cid)))
             header_layout.addWidget(btn)
@@ -587,7 +679,7 @@ class MainWindow(QMainWindow):
 
         requested, message = unit.request_camera_refresh()
         if not requested and "spam" not in message.lower():
-            QMessageBox.information(self, "Refresh Camera", message)
+            self._show_message(QMessageBox.Icon.Information, "Refresh Camera", message)
 
         self._refresh_camera_button_state()
 
@@ -633,7 +725,11 @@ class MainWindow(QMainWindow):
     def open_roi_dialog(self):
         """Open ROI configuration only for the actively focused camera."""
         if not self.active_camera_id:
-            QMessageBox.warning(self, "Select Camera", "Please add and select a camera first.")
+            self._show_message(
+                QMessageBox.Icon.Warning,
+                "Select Camera",
+                "Please select a camera.",
+            )
             return
             
         unit = self.unit_manager.get_unit(self.active_camera_id)
@@ -642,7 +738,11 @@ class MainWindow(QMainWindow):
             
         snapshot = self._latest_raw_frames.get(self.active_camera_id)
         if snapshot is None:
-            QMessageBox.warning(self, "No Frame", "Wait for the camera to connect before opening ROI setup.")
+            self._show_message(
+                QMessageBox.Icon.Warning,
+                "No Frame",
+                "Wait for the camera to connect.",
+            )
             return
 
         with unit.detect.lock:
@@ -669,9 +769,17 @@ class MainWindow(QMainWindow):
             with open(file_path, 'w') as f:
                 json.dump(config, f, indent=4)
             if not silent:
-                QMessageBox.information(self, "Saved", "All Region of Interests have been saved.")
+                self._show_message(
+                    QMessageBox.Icon.Information,
+                    "Saved",
+                    "All Region of Interests have been saved.",
+                )
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save ROI settings: {e}")
+            self._show_message(
+                QMessageBox.Icon.Critical,
+                "Error",
+                f"Failed to save ROI settings: {e}",
+            )
 
     def load_rois(self):
         """Load ROIs from config and push strictly to UnitManager."""

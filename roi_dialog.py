@@ -59,7 +59,8 @@ QTabWidget::pane {
 QTabBar::tab {
     background: #313244;
     color: #cdd6f4;
-    padding: 7px 22px;
+    min-height: 34px;
+    padding: 8px 22px;
     border-radius: 4px;
     font-weight: bold;
     font-size: 13px;
@@ -74,9 +75,10 @@ QLabel {
     font-size: 13px;
 }
 QPushButton {
-    border-radius: 5px;
-    padding: 6px 14px;
-    font-size: 13px;
+    border-radius: 6px;
+    min-height: 28px;
+    padding: 4px 10px;
+    font-size: 11px;
     font-weight: bold;
 }
 QPushButton#btn_detect {
@@ -102,15 +104,15 @@ QPushButton#btn_clear_all:hover { background-color: #f5a8bd; }
 QPushButton#btn_save {
     background-color: #a6e3a1;
     color: #11111b;
-    padding: 9px 24px;
-    font-size: 14px;
+    padding: 5px 12px;
+    font-size: 11px;
 }
 QPushButton#btn_save:hover { background-color: #b5f0b0; }
 QPushButton#btn_cancel {
     background-color: #45475a;
     color: #cdd6f4;
-    padding: 9px 24px;
-    font-size: 14px;
+    padding: 5px 12px;
+    font-size: 11px;
 }
 QPushButton#btn_cancel:hover { background-color: #585b70; }
 QPushButton[slot_btn="true"] {
@@ -118,10 +120,11 @@ QPushButton[slot_btn="true"] {
     color: #cdd6f4;
     border: 1px solid #45475a;
     border-radius: 5px;
+    min-width: 48px;
+    min-height: 36px;
     padding: 6px 12px;
     font-size: 13px;
     font-weight: bold;
-    min-width: 42px;
 }
 QPushButton[slot_btn="true"]:checked {
     background-color: #cba6f7;
@@ -137,6 +140,30 @@ QPushButton#btn_add_slot {
     font-weight: bold;
 }
 QFrame#divider { color: #45475a; }
+"""
+MESSAGE_BOX_STYLE = """
+QMessageBox {
+    background-color: #1e1e2e;
+}
+QMessageBox QLabel {
+    color: #f5f7ff;
+    font-size: 13px;
+}
+QMessageBox QPushButton {
+    background-color: #89b4fa;
+    color: #11111b;
+    border: 1px solid #74c7ec;
+    border-radius: 6px;
+    padding: 4px 10px;
+    min-width: 64px;
+    min-height: 28px;
+    margin: 10px 6px 12px 6px;
+    font-size: 11px;
+    font-weight: bold;
+}
+QMessageBox QPushButton:hover {
+    background-color: #a0c4fc;
+}
 """
 
 # ── Colour constants ──────────────────────────────────────────────────────────
@@ -746,17 +773,70 @@ class ROIDialog(QDialog):
 
         btn_cancel = QPushButton("Cancel")
         btn_cancel.setObjectName("btn_cancel")
-        btn_cancel.setFixedHeight(38)
+        btn_cancel.setMinimumHeight(28)
+        btn_cancel.setMinimumWidth(82)
         btn_cancel.clicked.connect(self.reject)
 
         btn_save = QPushButton("💾  Save & Close")
         btn_save.setObjectName("btn_save")
-        btn_save.setFixedHeight(38)
+        btn_save.setMinimumHeight(28)
+        btn_save.setMinimumWidth(112)
         btn_save.clicked.connect(self._on_save)
 
         btn_row.addWidget(btn_cancel)
         btn_row.addWidget(btn_save)
         root.addLayout(btn_row)
+
+    def _show_message(
+        self,
+        icon: QMessageBox.Icon,
+        title: str,
+        text: str,
+        buttons: QMessageBox.StandardButton = QMessageBox.Ok,
+        default_button: QMessageBox.StandardButton | None = None,
+        informative_text: str | None = None,
+    ) -> QMessageBox.StandardButton:
+        """Show a simple native message box with optional explanatory text."""
+        main_text = text
+        detail_text = informative_text
+        if detail_text is None and "\n\n" in text:
+            main_text, detail_text = text.split("\n\n", 1)
+
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(icon)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(main_text)
+        if detail_text:
+            msg_box.setInformativeText(detail_text)
+        msg_box.setStandardButtons(buttons)
+        if default_button is not None:
+            msg_box.setDefaultButton(default_button)
+        msg_box.setStyleSheet(MESSAGE_BOX_STYLE)
+        if msg_box.layout() is not None:
+            msg_box.layout().setContentsMargins(16, 14, 16, 22)
+            msg_box.layout().setSpacing(12)
+        text_label = msg_box.findChild(QLabel, "qt_msgbox_label")
+        if text_label is not None:
+            text_label.setWordWrap(True)
+            text_label.setMinimumWidth(360)
+            text_label.setMaximumWidth(440)
+            text_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            text_label.setContentsMargins(6, 0, 0, 0)
+        info_label = msg_box.findChild(QLabel, "qt_msgbox_informativelabel")
+        if info_label is not None:
+            info_label.setWordWrap(True)
+            info_label.setMinimumWidth(360)
+            info_label.setMaximumWidth(440)
+            info_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            info_label.setContentsMargins(6, 2, 0, 0)
+        icon_label = msg_box.findChild(QLabel, "qt_msgboxex_icon_label")
+        if icon_label is not None:
+            icon_label.setFixedWidth(46)
+            icon_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        msg_box.adjustSize()
+        size_hint = msg_box.sizeHint()
+        msg_box.resize(max(size_hint.width(), 580), max(size_hint.height(), 220))
+        return QMessageBox.StandardButton(msg_box.exec())
 
     def _build_auto_tab(self) -> QWidget:
         widget = QWidget()
@@ -778,12 +858,14 @@ class ROIDialog(QDialog):
 
         self._btn_detect = QPushButton("🤖  Detect ROIs")
         self._btn_detect.setObjectName("btn_detect")
-        self._btn_detect.setFixedHeight(34)
+        self._btn_detect.setMinimumHeight(28)
+        self._btn_detect.setMinimumWidth(108)
         self._btn_detect.clicked.connect(self._run_auto_detect)
 
         self._btn_confirm_auto = QPushButton("✅  Confirm Proposals")
         self._btn_confirm_auto.setObjectName("btn_confirm_auto")
-        self._btn_confirm_auto.setFixedHeight(34)
+        self._btn_confirm_auto.setMinimumHeight(28)
+        self._btn_confirm_auto.setMinimumWidth(132)
         self._btn_confirm_auto.setEnabled(False)
         self._btn_confirm_auto.clicked.connect(self._confirm_auto_rois)
 
@@ -828,7 +910,8 @@ class ROIDialog(QDialog):
 
         btn_add_slot = QPushButton("＋ Add Slot")
         btn_add_slot.setObjectName("btn_add_slot")
-        btn_add_slot.setFixedHeight(32)
+        btn_add_slot.setMinimumHeight(28)
+        btn_add_slot.setMinimumWidth(86)
         btn_add_slot.clicked.connect(lambda: self._add_slot_btn())
         slot_row.addWidget(btn_add_slot)
 
@@ -840,12 +923,14 @@ class ROIDialog(QDialog):
 
         self._btn_clear_slot = QPushButton("🗑  Clear Active Slot")
         self._btn_clear_slot.setObjectName("btn_clear_slot")
-        self._btn_clear_slot.setFixedHeight(32)
+        self._btn_clear_slot.setMinimumHeight(28)
+        self._btn_clear_slot.setMinimumWidth(122)
         self._btn_clear_slot.clicked.connect(self._clear_active_slot)
 
         self._btn_clear_all = QPushButton("⚠  Clear All")
         self._btn_clear_all.setObjectName("btn_clear_all")
-        self._btn_clear_all.setFixedHeight(32)
+        self._btn_clear_all.setMinimumHeight(28)
+        self._btn_clear_all.setMinimumWidth(86)
         self._btn_clear_all.clicked.connect(self._clear_all_rois)
 
         clear_row.addWidget(self._btn_clear_slot)
@@ -889,16 +974,19 @@ class ROIDialog(QDialog):
 
     def _run_auto_detect(self) -> None:
         if self._detector is None:
-            QMessageBox.warning(self, "Auto Detect", "No detector passed to the dialog.")
+            self._show_message(
+                QMessageBox.Icon.Warning,
+                "Auto Detect",
+                "Auto detection is unavailable.",
+            )
             return
 
         model_ready = getattr(self._detector, "model_loaded", False)
         if not model_ready or self._detector.model is None:
-            QMessageBox.critical(
-                self,
+            self._show_message(
+                QMessageBox.Icon.Critical,
                 "Auto Detect Error",
-                "AI Model is not loaded. Auto Mode requires a valid YOLO model.\n\n"
-                "Please ensure the configured model file exists and the detector initialized correctly.",
+                "AI model is not loaded.",
             )
             return
 
@@ -955,7 +1043,7 @@ class ROIDialog(QDialog):
         self._btn_detect.setText("🤖  Detect ROIs")
         self._btn_detect.setEnabled(True)
         self._auto_info_lbl.setText(f"❌ Error: {msg}")
-        QMessageBox.critical(self, "Detection Error", msg)
+        self._show_message(QMessageBox.Icon.Critical, "Detection Error", msg)
 
     @Slot()
     def _confirm_auto_rois(self) -> None:
@@ -1003,7 +1091,7 @@ class ROIDialog(QDialog):
         button = QPushButton(current_id)
         button.setProperty("slot_btn", "true")
         button.setCheckable(True)
-        button.setFixedSize(42, 32)
+        button.setMinimumSize(48, 36)
         button.clicked.connect(lambda checked, sid=slot_id: self._select_slot(sid))
         self._slot_btn_group.addButton(button)
         self._slot_btns.append(button)
@@ -1042,11 +1130,12 @@ class ROIDialog(QDialog):
         self._set_status(f"Slot {slot_id} cleared.")
 
     def _clear_all_rois(self) -> None:
-        confirm = QMessageBox.question(
-            self,
+        confirm = self._show_message(
+            QMessageBox.Icon.Question,
             "Clear All ROIs",
             "Remove all slot ROIs and reset buttons?",
             QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if confirm != QMessageBox.Yes:
             return
@@ -1089,11 +1178,12 @@ class ROIDialog(QDialog):
     def _on_save(self) -> None:
         rois = self._canvas.confirmed_rois
         if not rois:
-            confirm = QMessageBox.question(
-                self,
+            confirm = self._show_message(
+                QMessageBox.Icon.Question,
                 "No ROIs",
-                "No ROIs are defined. This will clear existing calibration. Continue?",
+                "This will clear existing calibration. Continue?",
                 QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
             )
             if confirm == QMessageBox.No:
                 return

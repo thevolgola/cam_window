@@ -82,9 +82,10 @@ QSpinBox:focus {
     border: 1px solid #89b4fa;
 }
 QPushButton {
-    border-radius: 5px;
-    padding: 6px 14px;
-    font-size: 13px;
+    border-radius: 6px;
+    min-height: 28px;
+    padding: 4px 10px;
+    font-size: 11px;
     font-weight: bold;
     color: #11111b;
 }
@@ -140,6 +141,30 @@ QScrollBar::handle:vertical:hover {
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     height: 0px;
+}
+"""
+MESSAGE_BOX_STYLE = """
+QMessageBox {
+    background-color: #1e1e2e;
+}
+QMessageBox QLabel {
+    color: #f5f7ff;
+    font-size: 13px;
+}
+QMessageBox QPushButton {
+    background-color: #89b4fa;
+    color: #11111b;
+    border: 1px solid #74c7ec;
+    border-radius: 6px;
+    padding: 4px 10px;
+    min-width: 64px;
+    min-height: 28px;
+    margin: 10px 6px 12px 6px;
+    font-size: 11px;
+    font-weight: bold;
+}
+QMessageBox QPushButton:hover {
+    background-color: #a0c4fc;
 }
 """
 
@@ -221,8 +246,8 @@ class CameraRow(QWidget):
         
         self.btn_browse = QPushButton("📂 Browse")
         self.btn_browse.setObjectName("btn_browse")
-        self.btn_browse.setFixedHeight(30)
-        self.btn_browse.setFixedWidth(90)
+        self.btn_browse.setMinimumHeight(28)
+        self.btn_browse.setMinimumWidth(86)
         self.btn_browse.clicked.connect(self._browse_model)
         model_layout.addWidget(self.btn_browse)
         
@@ -231,7 +256,8 @@ class CameraRow(QWidget):
         # Remove button
         self.btn_remove = QPushButton("🗑 Remove")
         self.btn_remove.setObjectName("btn_remove")
-        self.btn_remove.setFixedHeight(30)
+        self.btn_remove.setMinimumHeight(28)
+        self.btn_remove.setMinimumWidth(94)
         # Caller wires this up via remove_requested signal
         self.btn_remove.clicked.connect(self._on_remove)
         group_layout.addRow("", self.btn_remove)
@@ -316,7 +342,8 @@ class SettingsDialog(QDialog):
 
         self.btn_add = QPushButton("➕ Add Camera")
         self.btn_add.setObjectName("btn_add")
-        self.btn_add.setFixedHeight(32)
+        self.btn_add.setMinimumHeight(28)
+        self.btn_add.setMinimumWidth(108)
         self.btn_add.clicked.connect(self._add_camera)
         cam_header_row.addWidget(self.btn_add)
         root.addLayout(cam_header_row)
@@ -357,12 +384,14 @@ class SettingsDialog(QDialog):
 
         self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.setObjectName("btn_cancel")
-        self.btn_cancel.setFixedHeight(36)
+        self.btn_cancel.setMinimumHeight(28)
+        self.btn_cancel.setMinimumWidth(82)
         self.btn_cancel.clicked.connect(self.reject)
 
         self.btn_save = QPushButton("💾  Save & Apply")
         self.btn_save.setObjectName("btn_save")
-        self.btn_save.setFixedHeight(36)
+        self.btn_save.setMinimumHeight(28)
+        self.btn_save.setMinimumWidth(110)
         self.btn_save.clicked.connect(self._save_and_accept)
 
         btn_row.addStretch()
@@ -373,6 +402,57 @@ class SettingsDialog(QDialog):
     def _populate_cameras(self):
         for cam in self._settings.get("cameras", []):
             self._add_camera(cam)
+
+    def _show_message(
+        self,
+        icon: QMessageBox.Icon,
+        title: str,
+        text: str,
+        buttons: QMessageBox.StandardButton = QMessageBox.Ok,
+        default_button: QMessageBox.StandardButton | None = None,
+        informative_text: str | None = None,
+    ) -> QMessageBox.StandardButton:
+        """Show a simple native message box with optional explanatory text."""
+        main_text = text
+        detail_text = informative_text
+        if detail_text is None and "\n\n" in text:
+            main_text, detail_text = text.split("\n\n", 1)
+
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(icon)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(main_text)
+        if detail_text:
+            msg_box.setInformativeText(detail_text)
+        msg_box.setStandardButtons(buttons)
+        if default_button is not None:
+            msg_box.setDefaultButton(default_button)
+        msg_box.setStyleSheet(MESSAGE_BOX_STYLE)
+        if msg_box.layout() is not None:
+            msg_box.layout().setContentsMargins(16, 14, 16, 22)
+            msg_box.layout().setSpacing(12)
+        text_label = msg_box.findChild(QLabel, "qt_msgbox_label")
+        if text_label is not None:
+            text_label.setWordWrap(True)
+            text_label.setMinimumWidth(360)
+            text_label.setMaximumWidth(440)
+            text_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            text_label.setContentsMargins(6, 0, 0, 0)
+        info_label = msg_box.findChild(QLabel, "qt_msgbox_informativelabel")
+        if info_label is not None:
+            info_label.setWordWrap(True)
+            info_label.setMinimumWidth(360)
+            info_label.setMaximumWidth(440)
+            info_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            info_label.setContentsMargins(6, 2, 0, 0)
+        icon_label = msg_box.findChild(QLabel, "qt_msgboxex_icon_label")
+        if icon_label is not None:
+            icon_label.setFixedWidth(46)
+            icon_label.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        msg_box.adjustSize()
+        size_hint = msg_box.sizeHint()
+        msg_box.resize(max(size_hint.width(), 580), max(size_hint.height(), 220))
+        return QMessageBox.StandardButton(msg_box.exec())
 
     def _add_camera(self, cam_data=None):
         """Add a new camera row. cam_data is pre-filled if editing existing."""
@@ -396,62 +476,20 @@ class SettingsDialog(QDialog):
 
     def remove_camera_row(self, row: CameraRow):
         if len(self._camera_rows) <= 1:
-            QMessageBox.warning(self, "Remove Camera",
-                                "You must keep at least one camera configured.")
+            self._show_message(
+                QMessageBox.Icon.Warning,
+                "Remove Camera",
+                "At least one camera must remain configured.",
+            )
             return
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("Remove Camera")
-        msg_box.setText(f"Remove '{row.get_data().get('name', 'Camera')}'?")
-        msg_box.setIcon(QMessageBox.Icon.Question)
-        msg_box.resize(450, 200)  # Make the dialog bigger
-        msg_box.setStyleSheet("""
-            QMessageBox {
-                background-color: #0f0f0f;
-                color: white;
-                font-family: Arial;
-                font-size: 16px;
-                font-weight: normal;
-            }
-            QMessageBox QLabel {
-                color: white;
-                font-family: Arial;
-                font-size: 16px;
-                font-weight: normal;
-            }
-            QMessageBox QPushButton {
-                background-color: #45475a;
-                color: white;
-                border: 2px solid #585b70;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-family: Arial;
-                font-size: 16px;
-                font-weight: bold;
-                min-width: 120px;
-                min-height: 40px;
-            }
-            QMessageBox QPushButton:hover {
-                background-color: #585b70;
-                border: 2px solid #89b4fa;
-            }
-            QMessageBox QPushButton:pressed {
-                background-color: #313244;
-            }
-            QMessageBox QPushButton[text="Confirm"] {
-                background-color: #a6e3a1;
-                color: #11111b;
-                border: 2px solid #89b4fa;
-            }
-            QMessageBox QPushButton[text="Confirm"]:hover {
-                background-color: #b5f0b0;
-                border: 2px solid #74c7ec;
-            }
-        """)
-        cancel_button = msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-        confirm_button = msg_box.addButton("Confirm", QMessageBox.ButtonRole.AcceptRole)
-        msg_box.setDefaultButton(cancel_button)
-        confirm = msg_box.exec()
-        if msg_box.clickedButton() == confirm_button:
+        confirm = self._show_message(
+            QMessageBox.Icon.Question,
+            "Remove Camera",
+            f"Remove '{row.get_data().get('name', 'Camera')}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if confirm == QMessageBox.Yes:
             self._camera_rows.remove(row)
             self.cam_layout.removeWidget(row)
             row.deleteLater()
@@ -461,19 +499,21 @@ class SettingsDialog(QDialog):
         for row in self._camera_rows:
             d = row.get_data()
             if not d["url"]:
-                QMessageBox.warning(
-                    self, "Validation Error",
-                    f"Camera '{d['name']}' has an empty URL. Please fill it in."
+                self._show_message(
+                    QMessageBox.Icon.Warning,
+                    "Validation Error",
+                    f"Camera '{d['name']}' is missing its source.",
                 )
                 return
             
             # Model is optional, but if provided, check if file exists (only for absolute paths)
             model_path = d["model"]
             if model_path and os.path.isabs(model_path) and not os.path.exists(model_path):
-                QMessageBox.warning(
-                    self, "Validation Warning",
+                self._show_message(
+                    QMessageBox.Icon.Warning,
+                    "Validation Warning",
                     f"Model file not found for camera '{d['name']}':\n{model_path}\n\n"
-                    "You can still save, but detection won't work without a valid model."
+                    "Detection won't work without a valid model.",
                 )
                 # Don't return - let user save if they want
 
@@ -490,7 +530,11 @@ class SettingsDialog(QDialog):
             self._settings = new_settings
             self.accept()   # caller reads get_settings()
         else:
-            QMessageBox.critical(self, "Error", "Failed to save settings file.")
+            self._show_message(
+                QMessageBox.Icon.Critical,
+                "Error",
+                "Failed to save settings file.",
+            )
 
     def get_settings(self) -> dict:
         """Returns the last saved/accepted settings."""
