@@ -48,5 +48,6 @@ jobs:
       # Thêm biến môi trường để PyQt6 không cố gắng mở màn hình thật
       env:
         QT_QPA_PLATFORM: offscreen
+        PYTHONPATH: .
       run: |
         pytest
