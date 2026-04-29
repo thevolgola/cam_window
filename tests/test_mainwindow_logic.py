@@ -140,14 +140,15 @@ def test_toggle_camera_list_switches_view_mode(fake_mainwindow):
 
 
 def test_resolve_model_path_returns_absolute_for_absolute_paths(fake_mainwindow):
-    path = "/tmp/model.pt"
+    path = os.path.abspath("weights/best.pt")
     assert fake_mainwindow._resolve_model_path(path) == path
 
 
 def test_resolve_model_path_resolves_relative_paths(fake_mainwindow):
     relative = "weights/best.pt"
     resolved = fake_mainwindow._resolve_model_path(relative)
-    assert resolved.endswith(os.path.join("weights", "best.pt"))
+    expected = os.path.normpath(os.path.join("weights", "best.pt"))
+    assert os.path.normpath(resolved).endswith(expected)
 
 
 def test_update_ui_broadcasts_slot_states(fake_mainwindow):
