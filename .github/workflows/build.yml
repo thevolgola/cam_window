@@ -25,7 +25,7 @@ jobs:
           --name "camai" `
           --exclude-module pytest `
           --exclude-module flake8 `
-          --exclude-module unittest `
+          --exclude-module tests `
           --exclude-module numpy.tests `
           --clean `
           mainwindow.py 
