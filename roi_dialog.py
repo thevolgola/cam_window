@@ -43,7 +43,7 @@ from PySide6.QtWidgets import (
 
 # ── Configuration Constants ───────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = "config_detector.json"
+CONFIG_FILE = os.path.join(BASE_DIR, "config_detector.json")
 
 # ── Style ─────────────────────────────────────────────────────────────────────
 STYLE = """

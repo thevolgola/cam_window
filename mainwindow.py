@@ -1,6 +1,8 @@
+import socket
 import sys
 import queue
 import os
+import threading
 import time
 import cv2
 import json
@@ -9,7 +11,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                                QHBoxLayout, QWidget, QPushButton, QFrame,
                                QMessageBox, QScrollArea, QGridLayout, QStackedWidget, QSizePolicy,
                                QStyle)
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap, QFont, QPainter, QColor
 
 from unit_manager import UnitManager
@@ -17,7 +19,11 @@ from web_socket import WebSocketModule
 from settings_dialog import SettingsDialog, load_settings
 from roi_dialog import ROIDialog
 
+
+
 # Portability
+APP_PORT = 65432
+server_socket = None
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MESSAGE_BOX_STYLE = """
 QMessageBox {
@@ -46,8 +52,12 @@ QMessageBox QPushButton:hover {
 
 
 class MainWindow(QMainWindow):
+    focus_requested = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._single_instance_listener_active = True
+        self.focus_requested.connect(self._focus_window)
         self.setWindowTitle("AI Robot Parking Control - Monitor")
         self.setMinimumSize(1100, 700)
         self.setStyleSheet("""
@@ -102,6 +112,8 @@ class MainWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_ui)
         self.timer.start(33)
+
+        self._start_single_instance_listener()
 
     # ── UI Construction ────────────────────────────────────────────────────────
 
@@ -900,20 +912,92 @@ class MainWindow(QMainWindow):
             lo.addWidget(lbl_state)
             self.slots_layout.addWidget(row)
 
+    @staticmethod
+    def is_app_running():
+        global server_socket
+        probe_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            probe_socket.bind(('127.0.0.1', APP_PORT))
+            probe_socket.listen(1)
+            probe_socket.settimeout(0.5)
+            server_socket = probe_socket
+            return False
+        except OSError:
+            probe_socket.close()
+            server_socket = None
+            try:
+                with socket.create_connection(('127.0.0.1', APP_PORT), timeout=1.0) as focus_socket:
+                    focus_socket.sendall(b'focus')
+            except OSError:
+                pass
+            return True
+
+    def _start_single_instance_listener(self):
+        if server_socket is None:
+            return
+
+        listener = threading.Thread(
+            target=self._listen_for_single_instance_messages,
+            name="SingleInstanceListener",
+            daemon=True,
+        )
+        listener.start()
+
+    def _listen_for_single_instance_messages(self):
+        while self._single_instance_listener_active and server_socket is not None:
+            try:
+                client, _ = server_socket.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+
+            with client:
+                try:
+                    message = client.recv(32)
+                except OSError:
+                    continue
+
+            if message == b'focus':
+                self.focus_requested.emit()
+
+    @Slot()
+    def _focus_window(self):
+        if self.isMinimized():
+            self.showNormal()
+        else:
+            self.show()
+        self.raise_()
+        self.activateWindow()
+
     # ── Shutdown ───────────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
         print("[MainWindow] Shutting down...")
+        self._single_instance_listener_active = False
         self.timer.stop()
         self.unit_manager.stop_all()
         self.ws_server.stop()
         if self.ws_server.is_alive():
             self.ws_server.join(timeout=2.0)
+        global server_socket
+        if server_socket:
+            server_socket.close()
+            server_socket = None
         event.accept()
 
 
 if __name__ == "__main__":
+    if MainWindow.is_app_running():
+        sys.exit(0)
+
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec())
+    exit_code = app.exec()
+
+    if server_socket:
+        server_socket.close()
+        server_socket = None
+
+    sys.exit(exit_code)
