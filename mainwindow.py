@@ -866,8 +866,8 @@ class MainWindow(QMainWindow):
 
         self._refresh_camera_button_state()
         
-        merged_states = self.unit_manager.get_all_slot_states()
-        self.ws_server.send_data_to_all(merged_states)
+        camera_results = results
+        self.ws_server.send_data_to_all(camera_results)
         
     def _create_placeholder_pixmap(self, text, w, h) -> QPixmap:
         pixmap = QPixmap(w, h)

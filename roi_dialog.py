@@ -266,6 +266,10 @@ class ROICanvas(QLabel):
                 print(f"[ROICanvas] Skipping invalid slot id {slot_id!r}")
                 continue
 
+            if sid in normalized:
+                print(f"[ROICanvas] Duplicate slot id {sid!r} in ROI settings; ignoring later entry.")
+                continue
+
             normalized_roi = cls.normalize_roi(roi)
             if normalized_roi is None:
                 print(f"[ROICanvas] Skipping invalid ROI entry for slot {slot_id!r}")

@@ -97,15 +97,21 @@ class UnitManager:
         `camera_configs` format: [{'id': 1, 'url': '...', 'model': '...'}, ...]
         """
         active_ids = []
+        seen_ids = set()
         
         for cam_data in camera_configs:
-            cam_id = str(cam_data.get('id', ''))
+            cam_id = str(cam_data.get('id', '')).strip()
             url = cam_data.get('url', '')
             model = cam_data.get('model', '')
             
             if not cam_id or not url:
                 continue
-                
+
+            if cam_id in seen_ids:
+                print(f"[UnitManager] Duplicate camera id {cam_id!r} in settings; ignoring later entry.")
+                continue
+
+            seen_ids.add(cam_id)
             active_ids.append(cam_id)
             
             if cam_id in self.units:

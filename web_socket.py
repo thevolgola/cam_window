@@ -53,38 +53,35 @@ class WebSocketModule(threading.Thread):
                 self.clients.remove(websocket)
             print(f"Robot Server disconnected. Active clients: {len(self.clients)}")
 
-    def send_data_to_all(self, slot_states):
+    def send_data_to_all(self, camera_results):
         """
-        Receives data from YOLODetector and broadcasts to the robot server.
-        Transforms raw labels into robot-ready 'states'.
+        Receives detection results from all camera units and broadcasts
+        a payload containing camera_id, slot_id, and derived state.
         """
         if not self.loop or self._stopping.is_set():
             return
 
         object_list = []
-        for slot_id, label in slot_states.items():
-            current_label = str(label).strip().lower()
+        for camera_id, result in camera_results.items():
+            slots = result.get("slots", {}) if isinstance(result, dict) else {}
+            for slot_id, label in slots.items():
+                state = label
 
-            # Mapping logic for Robot decision making
-            if current_label == "empty":
-                state = "empty"      # Action: Robot can place a car
-            elif current_label == "unknown" or current_label == "fail":
-                state = "unknown"    # Action: Robot must stop (Obstacle/Error)
-            else:
-                state = "occupied"   # Action: Robot can take the car
+                formatted_slot_id = int(slot_id) if isinstance(slot_id, str) and slot_id.isdigit() else slot_id
+                formatted_camera_id = int(camera_id) if isinstance(camera_id, str) and camera_id.isdigit() else camera_id
 
-            obj = {
-                "id": int(slot_id),
-                "state": state,
-                "label": label  # Keeps raw label (Car Full / Car Empty) for logging
-            }
-            object_list.append(obj)
+                obj = {
+                    "camera_id": formatted_camera_id,
+                    "slot_id": formatted_slot_id,
+                    "state": state,
+                }
+                object_list.append(obj)
 
         # Package payload with ISO timestamp
         payload = {
             "timestamp": datetime.now().isoformat(),
             "total_slots": len(object_list),
-            "objects": object_list
+            "slots": object_list,
         }
         message = json.dumps(payload)
 
