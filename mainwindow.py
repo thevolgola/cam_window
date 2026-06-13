@@ -79,6 +79,8 @@ class MainWindow(QMainWindow):
         self.active_camera_id = None    # Currently focused camera ID
         self._focused_raw_frame: np.ndarray | None = None
         self._latest_raw_frames: dict[str, np.ndarray] = {}
+        self._last_ws_send_time = 0.0
+        self._ws_send_interval = 0.25  # Seconds between WebSocket broadcasts
         self.grid_video_labels = {}     # Dictionary mapping cam_id -> QLabel
         self.sidebar_expanded = True
         
@@ -866,8 +868,32 @@ class MainWindow(QMainWindow):
 
         self._refresh_camera_button_state()
         
-        camera_results = results
-        self.ws_server.send_data_to_all(camera_results)
+        camera_results = {}
+        for cam_id, unit in self.unit_manager.units.items():
+            if cam_id in results:
+                camera_results[cam_id] = results[cam_id]
+            else:
+                if not unit.camera.is_connected or not getattr(unit.detect, "enabled", True):
+                    # Send blank slot states when the camera is offline or detection is disabled.
+                    blank_slots = {sid: "" for sid in unit.detect.slot_rois.keys()}
+                    camera_results[cam_id] = {
+                        "cam_id": cam_id,
+                        "frame": None,
+                        "raw_frame": None,
+                        "slots": blank_slots,
+                    }
+                else:
+                    camera_results[cam_id] = {
+                        "cam_id": cam_id,
+                        "frame": None,
+                        "raw_frame": self._latest_raw_frames.get(cam_id),
+                        "slots": unit.detect.get_states(),
+                    }
+
+        now = time.time()
+        if now - self._last_ws_send_time >= self._ws_send_interval:
+            self.ws_server.send_data_to_all(camera_results)
+            self._last_ws_send_time = now
         
     def _create_placeholder_pixmap(self, text, w, h) -> QPixmap:
         pixmap = QPixmap(w, h)
