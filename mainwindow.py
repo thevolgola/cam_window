@@ -31,18 +31,18 @@ QMessageBox {
 }
 QMessageBox QLabel {
     color: #f5f7ff;
-    font-size: 13px;
+    font-size: 13pt;
 }
 QMessageBox QPushButton {
     background-color: #89b4fa;
     color: #11111b;
     border: 1px solid #74c7ec;
-    border-radius: 6px;
-    padding: 4px 10px;
-    min-width: 64px;
-    min-height: 28px;
-    margin: 10px 6px 12px 6px;
-    font-size: 11px;
+    border-radius: 0.5em;
+    padding: 0.3em 0.8em;
+    min-width: 6em;
+    min-height: 2.5em;
+    margin: 0.8em 0.5em 1em 0.5em;
+    font-size: 11pt;
     font-weight: bold;
 }
 QMessageBox QPushButton:hover {
@@ -59,16 +59,25 @@ class MainWindow(QMainWindow):
         self._single_instance_listener_active = True
         self.focus_requested.connect(self._focus_window)
         self.setWindowTitle("AI Robot Parking Control - Monitor")
-        self.setMinimumSize(1100, 700)
+        
+        # Dynamically calculate window size to fit screen nicely
+        screen = QApplication.primaryScreen()
+        if screen:
+            geom = screen.availableGeometry()
+            self.setMinimumSize(min(800, int(geom.width() * 0.5)), min(600, int(geom.height() * 0.5)))
+            self.resize(int(geom.width() * 0.8), int(geom.height() * 0.8))
+        else:
+            self.setMinimumSize(800, 600)
+            self.resize(1100, 700)
         self.setStyleSheet("""
             QMainWindow { background-color: #1e1e2e; }
             QWidget     { background-color: #1e1e2e; color: #cdd6f4; }
             QLabel      { color: #cdd6f4; }
             QPushButton {
-                border-radius: 6px;
-                min-height: 28px;
-                padding: 4px 10px;
-                font-size: 11px;
+                border-radius: 0.5em;
+                min-height: 2.5em;
+                padding: 0.3em 0.8em;
+                font-size: 11pt;
                 font-weight: bold;
                 color: #11111b;
             }
@@ -136,8 +145,8 @@ class MainWindow(QMainWindow):
         # Title bar above video
         self.cam_title = QLabel("Initializing...")
         self.cam_title.setStyleSheet("""
-            font-size: 13px; font-weight: bold; color: #cdd6f4;
-            background-color: #313244; padding: 3px 6px; border-radius: 3px;
+            font-size: 13pt; font-weight: bold; color: #cdd6f4;
+            background-color: #313244; padding: 0.25em 0.5em; border-radius: 0.25em;
         """)
         self.cam_title.setAlignment(Qt.AlignCenter)
         self.video_container_layout.addWidget(self.cam_title)
@@ -149,10 +158,10 @@ class MainWindow(QMainWindow):
         self.single_video_label = QLabel("Waiting for camera...")
         self.single_video_label.setAlignment(Qt.AlignCenter)
         self.single_video_label.setStyleSheet(
-            "background-color: #11111b; color: #a6adc8; border: 1px solid #313244; border-radius: 3px;"
+            "background-color: #11111b; color: #a6adc8; border: 1px solid #313244; border-radius: 0.25em;"
         )
         self.single_video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.single_video_label.setMinimumSize(640, 480)
+        self.single_video_label.setMinimumSize(320, 240)
         
         # Grid View Area
         self.grid_scroll = QScrollArea()
@@ -180,7 +189,7 @@ class MainWindow(QMainWindow):
             QFrame#sidebarWidget {
                 background-color: #181825;
                 border: 1px solid #313244;
-                border-radius: 5px;
+                border-radius: 0.4em;
             }
         """)
         self.sidebar_widget.setMinimumWidth(236)
@@ -207,7 +216,7 @@ class MainWindow(QMainWindow):
             QPushButton {
                 background-color: #313244;
                 color: #cdd6f4;
-                font-size: 12px;
+                font-size: 12pt;
                 padding: 0;
             }
         """)
@@ -221,16 +230,16 @@ class MainWindow(QMainWindow):
         import torch
         device_name = 'CUDA' if torch.cuda.is_available() else 'CPU'
         self.hw_label = QLabel(f"AI ENGINE: {device_name}")
-        self.hw_label.setStyleSheet("font-size: 12px;")
+        self.hw_label.setStyleSheet("font-size: 12pt;")
         self.sidebar.addWidget(self.hw_label)
 
         self.conn_label = QLabel("WEBSOCKET: 0 CLIENTS")
-        self.conn_label.setStyleSheet("font-size: 12px;")
+        self.conn_label.setStyleSheet("font-size: 12pt;")
         self.sidebar.addWidget(self.conn_label)
 
         self.cam_url_label = QLabel()
         self.cam_url_label.setWordWrap(True)
-        self.cam_url_label.setStyleSheet("font-size: 11px; color: #585b70;")
+        self.cam_url_label.setStyleSheet("font-size: 11pt; color: #585b70;")
         self._refresh_url_label()
         self.sidebar.addWidget(self.cam_url_label)
 
@@ -261,7 +270,7 @@ class MainWindow(QMainWindow):
         # Camera status info
         self.cam_status_label = QLabel()
         self.cam_status_label.setWordWrap(True)
-        self.cam_status_label.setStyleSheet("font-size: 11px; color: #cdd6f4;")
+        self.cam_status_label.setStyleSheet("font-size: 11pt; color: #cdd6f4;")
         self._refresh_cam_status_label()
         self.sidebar.addWidget(self.cam_status_label)
 
@@ -273,7 +282,7 @@ class MainWindow(QMainWindow):
         self.btn_prev_camera = QPushButton("◀ PREVIOUS")
         self.btn_prev_camera.clicked.connect(lambda: self._select_relative_camera(-1))
         self.btn_prev_camera.setStyleSheet(
-            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 6px 9px;"
+            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 0.5em 0.8em;"
         )
         self.btn_prev_camera.setMinimumHeight(28)
         camera_nav_layout.addWidget(self.btn_prev_camera)
@@ -281,7 +290,7 @@ class MainWindow(QMainWindow):
         self.btn_next_camera = QPushButton("NEXT ▶")
         self.btn_next_camera.clicked.connect(lambda: self._select_relative_camera(1))
         self.btn_next_camera.setStyleSheet(
-            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 6px 9px;"
+            "background-color: #74c7ec; color: #11111b; font-weight: bold; padding: 0.5em 0.8em;"
         )
         self.btn_next_camera.setMinimumHeight(28)
         camera_nav_layout.addWidget(self.btn_next_camera)
@@ -291,7 +300,7 @@ class MainWindow(QMainWindow):
         self.btn_cameras = QPushButton("📹 VIEW ALL CAMERAS")
         self.btn_cameras.clicked.connect(self._toggle_camera_list)
         self.btn_cameras.setStyleSheet(
-            "background-color: #fab387; color: #11111b; font-weight: bold; padding: 6px 10px;"
+            "background-color: #fab387; color: #11111b; font-weight: bold; padding: 0.5em 0.8em;"
         )
         self.btn_cameras.setMinimumHeight(28)
         self.sidebar.addWidget(self.btn_cameras)
@@ -300,7 +309,7 @@ class MainWindow(QMainWindow):
         self.btn_detect = QPushButton("🔴 AI DETECTION IS OFF")
         self.btn_detect.clicked.connect(self._toggle_detection)
         self.btn_detect.setStyleSheet(
-            "background-color: #f38ba8; color: #11111b; font-weight: bold; padding: 6px 10px;"
+            "background-color: #f38ba8; color: #11111b; font-weight: bold; padding: 0.5em 0.8em;"
         )
         self.btn_detect.setMinimumHeight(28)
         self.sidebar.addWidget(self.btn_detect)
@@ -308,7 +317,7 @@ class MainWindow(QMainWindow):
         self.btn_refresh_camera = QPushButton("🔄 REFRESH CAMERA")
         self.btn_refresh_camera.clicked.connect(self._refresh_camera_connection)
         self.btn_refresh_camera.setStyleSheet(
-            "background-color: #f9e2af; color: #11111b; font-weight: bold; padding: 6px 10px;"
+            "background-color: #f9e2af; color: #11111b; font-weight: bold; padding: 0.5em 0.8em;"
         )
         self.btn_refresh_camera.setMinimumHeight(28)
         self.sidebar.addWidget(self.btn_refresh_camera)
@@ -321,14 +330,14 @@ class MainWindow(QMainWindow):
         self.btn_settings = QPushButton("⚙  SETTINGS")
         self.btn_settings.clicked.connect(self.open_settings)
         self.btn_settings.setStyleSheet(
-            "background-color: #cba6f7; color: #11111b; font-weight: bold; padding: 6px 10px;"
+            "background-color: #cba6f7; color: #11111b; font-weight: bold; padding: 0.5em 0.8em;"
         )
         self.btn_settings.setMinimumHeight(28)
 
         self.btn_roi = QPushButton("📐  SET ROI")
         self.btn_roi.clicked.connect(self.open_roi_dialog)
         self.btn_roi.setStyleSheet(
-            "background-color: #89dceb; color: #11111b; font-weight: bold; padding: 6px 10px;"
+            "background-color: #89dceb; color: #11111b; font-weight: bold; padding: 0.5em 0.8em;"
         )
         self.btn_roi.setMinimumHeight(28)
 
@@ -341,13 +350,13 @@ class MainWindow(QMainWindow):
     def _section_label(self, text: str) -> QLabel:
         lbl = QLabel(text)
         lbl.setFont(QFont("Arial", 9, QFont.Bold))
-        lbl.setStyleSheet("color: #89b4fa; margin-top: 4px;")
+        lbl.setStyleSheet("color: #89b4fa; margin-top: 0.3em;")
         return lbl
 
     def _divider(self) -> QFrame:
         line = QFrame()
         line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("color: #45475a; margin: 2px 0;")
+        line.setStyleSheet("color: #45475a; margin: 0.2em 0;")
         return line
 
     def _update_sidebar_toggle_button(self):
@@ -497,7 +506,7 @@ class MainWindow(QMainWindow):
         cameras = self._app_settings.get("cameras", [])
         if not cameras:
             lbl = QLabel("No cameras configured.")
-            lbl.setStyleSheet("color: #a6adc8; font-size: 16px;")
+            lbl.setStyleSheet("color: #a6adc8; font-size: 16pt;")
             self.grid_layout.addWidget(lbl, 0, 0)
             return
 
@@ -509,7 +518,7 @@ class MainWindow(QMainWindow):
             
             cam_container = QFrame()
             cam_container.setStyleSheet("""
-                QFrame { background-color: #1e1e2e; border: 1px solid #313244; border-radius: 3px; }
+                QFrame { background-color: #1e1e2e; border: 1px solid #313244; border-radius: 0.25em; }
                 QFrame:hover { border: 1px solid #89b4fa; }
             """)
             clayout = QVBoxLayout(cam_container)
@@ -524,15 +533,15 @@ class MainWindow(QMainWindow):
 
             title_lbl = QLabel(f"CAM {cam_id}")
             title_lbl.setStyleSheet("""
-                color: #cdd6f4; font-weight: bold; border: none; font-size: 10px;
-                background-color: #313244; padding: 2px 6px; border-radius: 8px;
+                color: #cdd6f4; font-weight: bold; border: none; font-size: 10pt;
+                background-color: #313244; padding: 0.2em 0.5em; border-radius: 0.7em;
             """)
             title_lbl.setToolTip(name)
             header_layout.addWidget(title_lbl)
 
             if name and name != f"Camera {cam_id}":
                 name_lbl = QLabel(name)
-                name_lbl.setStyleSheet("color: #bac2de; border: none; font-size: 10px;")
+                name_lbl.setStyleSheet("color: #bac2de; border: none; font-size: 10pt;")
                 name_lbl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
                 header_layout.addWidget(name_lbl, 1)
             else:
@@ -551,7 +560,7 @@ class MainWindow(QMainWindow):
             btn.setMinimumWidth(84)
             btn.setStyleSheet("""
                 background-color: #89b4fa; color: #11111b; font-weight: bold;
-                padding: 3px 8px; border-radius: 8px; font-size: 10px;
+                padding: 0.25em 0.7em; border-radius: 0.7em; font-size: 10pt;
             """)
             btn.clicked.connect(lambda checked, cid=cam_id: self._select_camera(str(cid)))
             header_layout.addWidget(btn)
@@ -571,7 +580,7 @@ class MainWindow(QMainWindow):
             self.video_stack.setCurrentIndex(1)
             self.cam_title.setText("All Cameras Overview")
             self.btn_cameras.setText("🔙 SINGLE CAMERA VIEW")
-            self.btn_cameras.setStyleSheet("background-color: #f38ba8; color: #11111b; font-weight: bold; font-size: 14px; padding: 10px;")
+            self.btn_cameras.setStyleSheet("background-color: #f38ba8; color: #11111b; font-weight: bold; font-size: 14pt; padding: 0.8em;")
             
             self.btn_detect.setEnabled(False)
             self.btn_roi.setEnabled(False)
@@ -579,7 +588,7 @@ class MainWindow(QMainWindow):
         else:
             self.video_stack.setCurrentIndex(0)
             self.btn_cameras.setText("📹 VIEW ALL CAMERAS")
-            self.btn_cameras.setStyleSheet("background-color: #89b4fa; color: #11111b; font-weight: bold; font-size: 14px; padding: 10px;")
+            self.btn_cameras.setStyleSheet("background-color: #89b4fa; color: #11111b; font-weight: bold; font-size: 14pt; padding: 0.8em;")
             
             self.btn_detect.setEnabled(True)
             self.btn_roi.setEnabled(True)
@@ -603,10 +612,10 @@ class MainWindow(QMainWindow):
             enabled = getattr(unit.detect, 'enabled', False)
             if enabled:
                 self.btn_detect.setText("🟢 AI DETECTION IS ON")
-                self.btn_detect.setStyleSheet("background-color: #a6e3a1; color: #11111b; font-weight: bold; font-size: 14px; padding: 10px;")
+                self.btn_detect.setStyleSheet("background-color: #a6e3a1; color: #11111b; font-weight: bold; font-size: 14pt; padding: 0.8em;")
             else:
                 self.btn_detect.setText("🔴 AI DETECTION IS OFF")
-                self.btn_detect.setStyleSheet("background-color: #f38ba8; color: #11111b; font-weight: bold; font-size: 14px; padding: 10px;")
+                self.btn_detect.setStyleSheet("background-color: #f38ba8; color: #11111b; font-weight: bold; font-size: 14pt; padding: 0.8em;")
 
     def _refresh_url_label(self):
         count = len(self.unit_manager.units)
@@ -677,10 +686,10 @@ class MainWindow(QMainWindow):
         
         if new_state:
             self.btn_detect.setText("🟢 AI DETECTION IS ON")
-            self.btn_detect.setStyleSheet("background-color: #a6e3a1; color: #11111b; font-weight: bold; font-size: 14px; padding: 10px;")
+            self.btn_detect.setStyleSheet("background-color: #a6e3a1; color: #11111b; font-weight: bold; font-size: 14pt; padding: 0.8em;")
         else:
             self.btn_detect.setText("🔴 AI DETECTION IS OFF")
-            self.btn_detect.setStyleSheet("background-color: #f38ba8; color: #11111b; font-weight: bold; font-size: 14px; padding: 10px;")
+            self.btn_detect.setStyleSheet("background-color: #f38ba8; color: #11111b; font-weight: bold; font-size: 14pt; padding: 0.8em;")
 
     def _refresh_camera_connection(self) -> None:
         """Request a manual reconnect for the actively focused camera."""
@@ -913,7 +922,7 @@ class MainWindow(QMainWindow):
                 
         if not slots_data:
             lbl = QLabel("No detection data or ROIs defined.")
-            lbl.setStyleSheet("color: #a6adc8; padding-top: 10px;")
+            lbl.setStyleSheet("color: #a6adc8; padding-top: 0.8em;")
             self.slots_layout.addWidget(lbl)
             return
 
@@ -923,15 +932,15 @@ class MainWindow(QMainWindow):
             lo.setContentsMargins(4, 3, 4, 3)
 
             lbl_id = QLabel(f"Slot {slot_id}")
-            lbl_id.setStyleSheet("color: #cdd6f4; font-weight: bold; font-size: 13px;")
+            lbl_id.setStyleSheet("color: #cdd6f4; font-weight: bold; font-size: 13pt;")
 
             lbl_state = QLabel(state.upper())
             if state == "empty":
-                lbl_state.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 13px;")
+                lbl_state.setStyleSheet("color: #a6e3a1; font-weight: bold; font-size: 13pt;")
             elif state == "occupied":
-                lbl_state.setStyleSheet("color: #f38ba8; font-weight: bold; font-size: 13px;")
+                lbl_state.setStyleSheet("color: #f38ba8; font-weight: bold; font-size: 13pt;")
             else:
-                lbl_state.setStyleSheet("color: #bac2de; font-weight: bold; font-size: 13px;")
+                lbl_state.setStyleSheet("color: #bac2de; font-weight: bold; font-size: 13pt;")
                 
             lo.addWidget(lbl_id)
             lo.addStretch()
